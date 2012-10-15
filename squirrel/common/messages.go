@@ -1,31 +1,31 @@
 package common
 
 import (
-    "net"
+	"net"
 )
 
 // Message types
 const (
-    MSGJOINREQ = iota
-    MSGJOINRSP
-    MSGPACKET
+	MSGJOINREQ = iota
+	MSGJOINRSP
+	MSGPACKET
 )
 
 type MessageType struct {
-    Type        uint8       //256 kinds should be enough for all messages, huh?
+	Type uint8 //256 kinds should be enough for all messages, huh?
 }
 
 type JoinReq struct {
-    Identity    uint32
+	Identity uint32
 }
 
 type JoinRsp struct {
-    Address     net.IP
-    Mask        net.IP
+	Address net.IP
+	Mask    net.IP
 }
 
 type Packet struct {
-    Length      uint16
-    NextHop		net.IP
-    Packet		[]byte
+	Length  uint16
+	NextHop net.IP
+	Packet  []byte
 }
