@@ -9,7 +9,7 @@ type Link struct {
 	connection  *net.IPConn
 	buffer      chan *BufferedPacket // buffer pool. It owns instances of BufferedPacket
 	ReadPacket  chan *BufferedPacket // The channel used to read a packet from this Link
-	WritePacket chan *BufferedPacket // The channel to write a packet into this Link
+	WritePacket chan *Packet // The channel to write a packet into this Link
 	encoder     *gob.Encoder
 	decoder     *gob.Decoder
 }
@@ -19,7 +19,7 @@ func NewLink(conn *net.IPConn) (link *Link) {
 		connection:  conn,
 		buffer:      make(chan *BufferedPacket, BUFFERSIZE),
 		ReadPacket:  make(chan *BufferedPacket),
-		WritePacket: make(chan *BufferedPacket),
+		WritePacket: make(chan *Packet, BUFFERSIZE),
 		encoder:     gob.NewEncoder(conn),
 		decoder:     gob.NewDecoder(conn),
 	}
@@ -73,10 +73,9 @@ func (link *Link) readRoutine() {
 }
 
 func (link *Link) writeRoutine() {
-	var buf *BufferedPacket
+	var p *Packet
 	for {
-		buf = <-link.WritePacket
-		link.encoder.Encode(buf.Packet)
-		buf.Return()
+		p = <-link.WritePacket
+		link.encoder.Encode(p)
 	}
 }
