@@ -17,5 +17,7 @@ func NewBufferedPacket(owner chan *BufferedPacket) *BufferedPacket {
 
 // send the BufferedPacket back to its owner channel for further use
 func (buf *BufferedPacket) Return() {
-	buf.owner <- buf
+	if buf.owner != nil {
+		buf.owner <- buf
+	}
 }
