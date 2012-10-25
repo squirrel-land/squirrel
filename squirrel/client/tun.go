@@ -34,7 +34,7 @@ func (tun *Tun) Name() string {
 func (tun *Tun) createInterface(ifPattern string) (err error) {
 	var req ifReq
 	req.Flags = IFF_TUN | IFF_NO_PI
-	copy(req.Name[:15], ifPattern)
+	copy(req.Name[:], ifPattern)
 	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, tun.file.Fd(), uintptr(syscall.TUNSETIFF), uintptr(unsafe.Pointer(&req)))
 	if errno != 0 {
 		return errno
