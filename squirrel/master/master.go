@@ -51,6 +51,12 @@ func (master *Master) packetHandler(myIdentity int) {
 	notify := make(chan byte)
 	for {
 		bufferedPacket = <-master.clients[myIdentity].ReadPacket
+		if master.clients[myIdentity].Error != nil {
+			addr, _ := master.addressPool.GetAddress(myIdentity)
+			fmt.Printf("%v left\n", addr)
+			master.clients[myIdentity] = nil
+			return
+		}
 		if master.addressPool.IsBroadcast(bufferedPacket.Packet.NextHop) {
 			notifyCount = 0
 			for i := 1; i < len(master.clients); i++ {

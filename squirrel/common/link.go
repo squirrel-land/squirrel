@@ -2,7 +2,12 @@ package common
 
 import (
 	"encoding/gob"
+	"errors"
 	"net"
+)
+
+var (
+	ConnectionClosed = errors.New("Connection is closed.")
 )
 
 type notifiableBufferedPacket struct {
@@ -19,6 +24,7 @@ func (this *notifiableBufferedPacket) NotifyOrReturn() {
 }
 
 type Link struct {
+	Error       error // indicate whether there's any error encountered.
 	connection  net.Conn
 	buffer      chan *BufferedPacket          // buffer pool. It owns instances of BufferedPacket
 	ReadPacket  chan *BufferedPacket          // The channel used to read a packet from this Link. It is necessary to call .Return() when finishing using the BufferedPacket.
@@ -75,11 +81,21 @@ func (link *Link) readRoutine() {
 	var t MessageType
 	var buf *BufferedPacket
 	for {
-		link.decoder.Decode(&t)
-
+		if link.Error != nil {
+			link.ReadPacket <- nil
+			return
+		}
+		link.Error = link.decoder.Decode(&t)
+		if t.Type == 0 {
+			link.Error = ConnectionClosed
+		}
+		if link.Error != nil {
+			link.ReadPacket <- nil
+			return
+		}
 		if t.Type == MSGPACKET {
 			buf = <-link.buffer
-			link.decoder.Decode(buf.Packet)
+			link.Error = link.decoder.Decode(buf.Packet)
 			link.ReadPacket <- buf
 		}
 	}
@@ -90,8 +106,12 @@ func (link *Link) writeRoutine() {
 	packetType := MessageType{Type: MSGPACKET}
 	for {
 		nbuf = <-link.writePacket
-		link.encoder.Encode(packetType)
-		link.encoder.Encode(nbuf.BufferedPacket.Packet)
+		if link.Error == nil {
+			link.Error = link.encoder.Encode(packetType)
+			if link.Error == nil {
+				link.Error = link.encoder.Encode(nbuf.BufferedPacket.Packet)
+			}
+		}
 		nbuf.NotifyOrReturn()
 	}
 }

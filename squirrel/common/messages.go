@@ -6,7 +6,8 @@ import (
 
 // Message types
 const (
-	MSGJOINREQ = iota
+	_ = iota
+	MSGJOINREQ
 	MSGJOINRSP
 	MSGPACKET
 )

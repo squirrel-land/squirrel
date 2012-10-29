@@ -18,8 +18,9 @@ type Client struct {
 func NewClient(tunName string) (client *Client, err error) {
 	tun, err := NewTun(tunName)
 	client = &Client{
-		link: nil,
-		tun:  tun,
+		link:         nil,
+		tun:          tun,
+		routinesQuit: make(chan error),
 	}
 	return
 }
@@ -79,6 +80,10 @@ func (client *Client) master2tun() {
 	var err error
 	for {
 		buf = <-client.link.ReadPacket
+		if client.link.Error != nil {
+			client.routinesQuit <- client.link.Error
+			return
+		}
 		err = client.tun.Write(buf.Packet.Packet)
 		buf.Return()
 		if err != nil {
