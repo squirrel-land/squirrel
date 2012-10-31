@@ -20,7 +20,7 @@ func newAddressPool(network *net.IPNet) (ret *addressPool) {
 
 func (ap *addressPool) Capacity() int {
 	ones, bits := ap.Network.Mask.Size()
-	return (1 << (uint)(bits-ones)) - 2
+	return (1 << uint(bits-ones)) - 2
 }
 
 func (ap *addressPool) GetAddress(identity int) (addr net.IP, err error) {
@@ -43,10 +43,10 @@ func (ap *addressPool) GetIdentity(address net.IP) (identity int, err error) {
 		return
 	}
 	ones, bits := ap.Network.Mask.Size()
-	zeros := 1<<(uint)(bits-ones) - 1
+	zeros := 1<<uint(bits-ones) - 1
 	identity = 0
 	for i := 1; zeros > 0; i++ {
-		identity = identity + (0xFF&zeros&(int)(address[len(address)-i]))<<(uint)(8*(i-1))
+		identity = identity + (0xFF&zeros&int(address[len(address)-i]))<<uint(8*(i-1))
 		zeros = zeros >> 8
 	}
 	return
@@ -54,9 +54,9 @@ func (ap *addressPool) GetIdentity(address net.IP) (identity int, err error) {
 
 func (ap *addressPool) IsBroadcast(address net.IP) bool {
 	ones, bits := ap.Network.Mask.Size()
-	zeros := 1<<(uint)(bits-ones) - 1
+	zeros := 1<<uint(bits-ones) - 1
 	for i := 1; zeros > 0; i++ {
-		if 0xFF&zeros&(int)(address[len(address)-i]) != 0xFF&zeros {
+		if 0xFF&zeros&int(address[len(address)-i]) != 0xFF&zeros {
 			return false
 		}
 		zeros = zeros >> 8
