@@ -5,6 +5,7 @@ import (
 	"os"
 	"syscall"
 	"unsafe"
+    "strings"
 )
 
 const (
@@ -39,7 +40,7 @@ func (tun *Tun) createInterface(ifPattern string) (err error) {
 	if errno != 0 {
 		return errno
 	}
-	tun.name = string(req.Name[:])
+	tun.name = strings.Trim(string(req.Name[:]), "\x00")
 	return
 }
 
