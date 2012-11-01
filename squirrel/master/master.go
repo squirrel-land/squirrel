@@ -55,6 +55,9 @@ func (master *Master) packetHandler(myIdentity int) {
 			addr, _ := master.addressPool.GetAddress(myIdentity)
 			fmt.Printf("%v left\n", addr)
 			master.clients[myIdentity] = nil
+            if bufferedPacket != nil {
+                bufferedPacket.Return()
+            }
 			return
 		}
 		if master.addressPool.IsBroadcast(bufferedPacket.Packet.NextHop) {
@@ -68,11 +71,14 @@ func (master *Master) packetHandler(myIdentity int) {
 			for i := 0; i < notifyCount; i++ {
 				<-notify
 			}
+            bufferedPacket.Return()
 		} else {
 			nextHopId, err = master.addressPool.GetIdentity(bufferedPacket.Packet.NextHop)
 			if err == nil && master.clients[nextHopId] != nil {
 				master.clients[nextHopId].Write(bufferedPacket, nil)
-			}
+			} else {
+                bufferedPacket.Return()
+            }
 		}
 	}
 }
