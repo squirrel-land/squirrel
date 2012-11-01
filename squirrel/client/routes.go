@@ -79,6 +79,7 @@ func decodeMaskHex(ipHexStr string) (mask net.IPMask, err error) {
 func (r *Routes) update() (err error) {
 	file, err := os.OpenFile("/proc/net/route", os.O_RDONLY, 0)
 	if err != nil {
+        fmt.Println("Open /proc/net/route error")
 		return
 	}
 	r.initRoutes()
@@ -108,9 +109,11 @@ func (r *Routes) update() (err error) {
 }
 
 func (r *Routes) Print() {
+    fmt.Println("---- Routes ----")
 	for i := range r.routes {
 		fmt.Printf("%v\n", r.routes[i])
 	}
+    fmt.Println("-- End Routes --")
 }
 
 // Find the next-hop (gateway) of the given IP address.
