@@ -7,14 +7,34 @@ import (
 )
 
 type Master struct {
-	addressPool *addressPool
-	clients     []*common.Link
+	addressPool     *addressPool
+	clients         []*common.Link
+	mobileNodes     []*Position
+	mobilityManager MobilityManager
+	september       September
 }
 
-func NewMaster(network *net.IPNet) (master *Master) {
-	master = &Master{addressPool: newAddressPool(network)}
+func NewMaster(network *net.IPNet, mobilityManager MobilityManager, september September) (master *Master) {
+	master = &Master{addressPool: newAddressPool(network), mobilityManager: mobilityManager, september: september}
 	master.clients = make([]*common.Link, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
+	master.mobileNodes = make([]*Position, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
+	master.mobilityManager.SetMobileNodesSlice(master.mobileNodes)
+	master.september.SetMobileNodesSlice(master.mobileNodes)
 	return
+}
+
+func (master *Master) clientJoin(identity int, link *common.Link) {
+	master.clients[identity] = link
+	master.mobileNodes[identity] = master.mobilityManager.GenerateNewNode()
+	addr, _ := master.addressPool.GetAddress(identity)
+	fmt.Printf("%v joined\n", addr)
+}
+
+func (master *Master) clientLeave(identity int) {
+	master.clients[identity] = nil
+	master.mobileNodes[identity] = nil
+	addr, _ := master.addressPool.GetAddress(identity)
+	fmt.Printf("%v left\n", addr)
 }
 
 func (master *Master) accept(listener net.Listener) (identity int, err error) {
@@ -36,49 +56,49 @@ func (master *Master) accept(listener net.Listener) (identity int, err error) {
 	if err != nil {
 		return
 	}
-	master.clients[req.Identity] = link
+	master.clientJoin(req.Identity, link)
 	link.StartRoutines()
-	fmt.Printf("%v (%v) joined\n", addr, connection.(*net.TCPConn).RemoteAddr())
 	return req.Identity, nil
 }
 
 func (master *Master) packetHandler(myIdentity int) {
 	var (
-		bufferedPacket         *common.BufferedPacket
-		notifyCount, nextHopId int
-		err                    error
+		bufferedPacket *common.BufferedPacket
+		nextHopId      int
+		err            error
+		notify         = make(chan byte)
+		underlying     = make([]int, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
 	)
-	notify := make(chan byte)
+
 	for {
 		bufferedPacket = <-master.clients[myIdentity].ReadPacket
 		if master.clients[myIdentity].Error != nil {
-			addr, _ := master.addressPool.GetAddress(myIdentity)
-			fmt.Printf("%v left\n", addr)
-			master.clients[myIdentity] = nil
-            if bufferedPacket != nil {
-                bufferedPacket.Return()
-            }
+			master.clientLeave(myIdentity)
+			if bufferedPacket != nil {
+				bufferedPacket.Return()
+			}
 			return
 		}
-		if master.addressPool.IsBroadcast(bufferedPacket.Packet.NextHop) {
-			notifyCount = 0
-			for i := 1; i < len(master.clients); i++ {
-				if master.clients[i] != nil {
-					master.clients[i].Write(bufferedPacket, notify)
-					notifyCount = notifyCount + 1
+		if master.addressPool.IsBroadcast(bufferedPacket.Packet.NextHop) || bufferedPacket.Packet.NextHop.IsMulticast() {
+			recipients := master.september.SendBroadcast(myIdentity, underlying)
+			for _, id := range recipients {
+				if master.clients[id] != nil { // This is mostly not necessary. Added due to not using locks, just in case.
+					master.clients[id].Write(bufferedPacket, notify)
 				}
 			}
-			for i := 0; i < notifyCount; i++ {
+			for i := 0; i < len(recipients); i++ {
 				<-notify
 			}
-            bufferedPacket.Return()
-		} else {
+			bufferedPacket.Return()
+		} else { // unicast
 			nextHopId, err = master.addressPool.GetIdentity(bufferedPacket.Packet.NextHop)
 			if err == nil && master.clients[nextHopId] != nil {
-				master.clients[nextHopId].Write(bufferedPacket, nil)
+				if master.september.SendUnicast(myIdentity, nextHopId) {
+					master.clients[nextHopId].Write(bufferedPacket, nil)
+				}
 			} else {
-                bufferedPacket.Return()
-            }
+				bufferedPacket.Return()
+			}
 		}
 	}
 }

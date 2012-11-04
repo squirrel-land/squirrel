@@ -3,9 +3,9 @@ package client
 import (
 	"io"
 	"os"
+	"strings"
 	"syscall"
 	"unsafe"
-    "strings"
 )
 
 const (

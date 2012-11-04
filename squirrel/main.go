@@ -58,7 +58,9 @@ func runMaster() (err error) {
 	if err != nil {
 		return
 	}
-	master := master.NewMaster(network)
+	mobilityManager := &master.SimpleMobilityManager{}
+	september := &master.September1st{}
+	master := master.NewMaster(network, mobilityManager, september)
 	return master.Run(fAddr)
 }
 
