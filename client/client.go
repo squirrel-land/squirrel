@@ -2,6 +2,7 @@ package client
 
 import (
 	"../common"
+	"errors"
 	"fmt"
 	"net"
 	"os/exec"
@@ -50,6 +51,9 @@ func (client *Client) connect(masterAddr string, identity int) (err error) {
 	rsp, err := client.link.GetJoinRsp()
 	if err != nil {
 		return
+	}
+	if rsp.Success != true {
+		return errors.New("Join failed. Possiblly the Identity number in config file is duplicate on master.")
 	}
 	err = client.configureTun(rsp)
 	if err != nil {

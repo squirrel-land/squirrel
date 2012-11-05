@@ -26,6 +26,7 @@ type JoinReq struct {
 type JoinRsp struct {
 	Address net.IP
 	Mask    net.IPMask
+	Success bool
 }
 
 // represent a network layer packet

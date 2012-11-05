@@ -2,6 +2,7 @@ package master
 
 import (
 	"../common"
+	"errors"
 	"fmt"
 	"net"
 )
@@ -48,11 +49,16 @@ func (master *Master) accept(listener net.Listener) (identity int, err error) {
 	if err != nil {
 		return
 	}
+	if master.clients[req.Identity] != nil {
+		link.SendJoinRsp(&common.JoinRsp{Success: false})
+		err = errors.New("Duplicate identity")
+		return
+	}
 	addr, err := master.addressPool.GetAddress(req.Identity)
 	if err != nil {
 		return
 	}
-	err = link.SendJoinRsp(&common.JoinRsp{Address: addr, Mask: master.addressPool.Network.Mask})
+	err = link.SendJoinRsp(&common.JoinRsp{Address: addr, Mask: master.addressPool.Network.Mask, Success: true})
 	if err != nil {
 		return
 	}
