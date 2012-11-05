@@ -1,10 +1,18 @@
-package master
+package simpleModels
+
+import (
+	"../master"
+)
 
 type September1st struct {
-	nodes []*Position
+	nodes []*master.Position
 }
 
-func (september *September1st) SetMobileNodesSlice(nodes []*Position) {
+func NewSeptember1st(config map[string]string) (master.September, error) {
+	return &September1st{}, nil
+}
+
+func (september *September1st) SetMobileNodesSlice(nodes []*master.Position) {
 	september.nodes = nodes
 }
 
