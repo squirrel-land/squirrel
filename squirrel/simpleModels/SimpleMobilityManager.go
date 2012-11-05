@@ -8,7 +8,7 @@ type SimpleMobilityManager struct {
 	nodes []*master.Position
 }
 
-func NewSimpleMobilityManager(config map[string]string) (master.MobilityManager, error) {
+func NewSimpleMobilityManager(config map[string]interface{}) (master.MobilityManager, error) {
 	return &SimpleMobilityManager{}, nil
 }
 

@@ -9,9 +9,9 @@ type masterConfig struct {
 	ListenAddress             string
 	Network                   string
 	MobilityManager           string
-	MobilityManagerParameters map[string]string
+	MobilityManagerParameters map[string]interface{}
 	September                 string
-	SeptemberParameters       map[string]string
+	SeptemberParameters       map[string]interface{}
 }
 
 type clientConfig struct {

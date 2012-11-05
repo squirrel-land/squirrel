@@ -8,7 +8,7 @@ type September1st struct {
 	nodes []*master.Position
 }
 
-func NewSeptember1st(config map[string]string) (master.September, error) {
+func NewSeptember1st(config map[string]interface{}) (master.September, error) {
 	return &September1st{}, nil
 }
 
