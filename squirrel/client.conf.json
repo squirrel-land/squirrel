@@ -1,0 +1,5 @@
+{
+    "ServerAddress":    "192.168.2.254:1234",
+    "TunInterfaceName": "i.am.not.real",
+    "Identity":         1
+}
