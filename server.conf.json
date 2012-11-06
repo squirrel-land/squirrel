@@ -1,11 +1,14 @@
 {
     "ListenAddress":                ":1234",
     "Network":                      "10.0.0.0/24",
-    "MobilityManager":              "SimpleMobilityManager",
-    "September":                    "September1st",
+
+    "MobilityManager":              "StaticUniformPositions",
     "MobilityManagerParameters":    {
-        "foo": "bar"
+        "Spacing": 50000,
+        "Shape": "Linear"
     },
+
+    "September":                    "September1st",
     "SeptemberParameters":          {
         "foo": "bar"
     }

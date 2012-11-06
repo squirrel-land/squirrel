@@ -5,7 +5,7 @@ import (
 )
 
 var mobilityManagers = map[string]typeMobilityManagerConstructor{
-	"SimpleMobilityManager": simpleModels.NewSimpleMobilityManager,
+	"StaticUniformPositions": simpleModels.NewStaticUniformPositions,
 }
 
 var septembers = map[string]typeSeptemberConstructor{

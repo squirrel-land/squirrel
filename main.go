@@ -30,8 +30,26 @@ func runMaster() (err error) {
 	if err != nil {
 		return
 	}
-	mobilityManager, _ := NewMobilityManager(config.MobilityManager, config.MobilityManagerParameters)
-	september, _ := NewSeptember(config.September, config.SeptemberParameters)
+	mobilityManager, err := NewMobilityManager(config.MobilityManager)
+	if err != nil {
+		return
+	}
+	err = mobilityManager.Configure(config.MobilityManagerParameters)
+	if err != nil {
+		fmt.Println("Creating MobilityManager failed. Following message might help:\n")
+		fmt.Println(mobilityManager.ParametersHelp())
+		return
+	}
+	september, err := NewSeptember(config.September)
+	if err != nil {
+		return
+	}
+	err = september.Configure(config.SeptemberParameters)
+	if err != nil {
+		fmt.Println("Creating September failed. Following message might help:\n")
+		fmt.Println(september.ParametersHelp())
+		return
+	}
 	master := master.NewMaster(network, mobilityManager, september)
 	return master.Run(config.ListenAddress)
 }

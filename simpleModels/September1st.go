@@ -8,11 +8,19 @@ type September1st struct {
 	nodes []*master.Position
 }
 
-func NewSeptember1st(config map[string]interface{}) (master.September, error) {
-	return &September1st{}, nil
+func NewSeptember1st() master.September {
+	return &September1st{}
 }
 
-func (september *September1st) SetMobileNodesSlice(nodes []*master.Position) {
+func (september *September1st) ParametersHelp() string {
+	return ""
+}
+
+func (september *September1st) Configure(config map[string]interface{}) (err error) {
+	return nil
+}
+
+func (september *September1st) Initialize(nodes []*master.Position) {
 	september.nodes = nodes
 }
 

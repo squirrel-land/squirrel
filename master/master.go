@@ -18,8 +18,8 @@ func NewMaster(network *net.IPNet, mobilityManager MobilityManager, september Se
 	master = &Master{addressPool: newAddressPool(network), mobilityManager: mobilityManager, september: september}
 	master.clients = make([]*common.Link, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
 	master.mobileNodes = make([]*Position, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
-	master.mobilityManager.SetMobileNodesSlice(master.mobileNodes)
-	master.september.SetMobileNodesSlice(master.mobileNodes)
+	master.mobilityManager.Initialize(master.mobileNodes)
+	master.september.Initialize(master.mobileNodes)
 	return
 }
 
