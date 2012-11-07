@@ -30,7 +30,7 @@ func runMaster() (err error) {
 	if err != nil {
 		return
 	}
-	mobilityManager, err := NewMobilityManager(config.MobilityManager)
+	mobilityManager, err := newMobilityManager(config.MobilityManager)
 	if err != nil {
 		return
 	}
@@ -40,7 +40,7 @@ func runMaster() (err error) {
 		fmt.Println(mobilityManager.ParametersHelp())
 		return
 	}
-	september, err := NewSeptember(config.September)
+	september, err := newSeptember(config.September)
 	if err != nil {
 		return
 	}

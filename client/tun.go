@@ -9,12 +9,12 @@ import (
 )
 
 const (
-	IFF_TUN   = 0x0001
-	IFF_NO_PI = 0x1000
+	cIFF_TUN   = 0x0001
+	cIFF_NO_PI = 0x1000
 )
 
 const (
-	MAX_PACKET_SIZE = 1500 //MTU
+	cMAX_PACKET_SIZE = 1500 //MTU
 )
 
 type ifReq struct {
@@ -34,7 +34,7 @@ func (tun *tunIF) Name() string {
 
 func (tun *tunIF) createInterface(ifPattern string) (err error) {
 	var req ifReq
-	req.Flags = IFF_TUN | IFF_NO_PI
+	req.Flags = cIFF_TUN | cIFF_NO_PI
 	copy(req.Name[:], ifPattern)
 	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, tun.file.Fd(), uintptr(syscall.TUNSETIFF), uintptr(unsafe.Pointer(&req)))
 	if errno != 0 {
@@ -60,7 +60,7 @@ func newTun(ifPattern string) (tun *tunIF, err error) {
 
 // Read a packet from TUN device. 
 func (tun *tunIF) Read() (packet []byte, err error) {
-	buf := make([]byte, MAX_PACKET_SIZE)
+	buf := make([]byte, cMAX_PACKET_SIZE)
 	n, err := tun.file.Read(buf)
 	if err != nil && err != io.EOF {
 		return

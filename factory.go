@@ -12,22 +12,22 @@ type (
 )
 
 var (
-	NotRegistered = errors.New("MobilityManager or September is not registered.")
+	notRegistered = errors.New("MobilityManager or September is not registered.")
 )
 
-func NewMobilityManager(name string) (mobilityManager master.MobilityManager, err error) {
+func newMobilityManager(name string) (mobilityManager master.MobilityManager, err error) {
 	constructor := mobilityManagers[name]
 	if constructor == nil {
-		return nil, NotRegistered
+		return nil, notRegistered
 	}
 	mobilityManager = constructor()
 	return
 }
 
-func NewSeptember(name string) (september master.September, err error) {
+func newSeptember(name string) (september master.September, err error) {
 	constructor := septembers[name]
 	if constructor == nil {
-		return nil, NotRegistered
+		return nil, notRegistered
 	}
 	september = constructor()
 	return

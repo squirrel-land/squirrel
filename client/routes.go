@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	INITIAL_ROUTING_TABLE_CACHE_SIZE = 64
-	UPDATE_INTERVAL                  = 0.050
+	cINITIAL_ROUTING_TABLE_CACHE_SIZE = 64
+	cUPDATE_INTERVAL                  = 0.050
 )
 
 var _ZEROS_IP net.IP = net.IPv4(0, 0, 0, 0)
@@ -41,7 +41,7 @@ func newRoutes(ifName string) (ret *routes) {
 }
 
 func (r *routes) initroutes() {
-	r.routes = make([]*route, 0, INITIAL_ROUTING_TABLE_CACHE_SIZE)
+	r.routes = make([]*route, 0, cINITIAL_ROUTING_TABLE_CACHE_SIZE)
 }
 
 func (r routeArray) Len() int {
@@ -118,7 +118,7 @@ func (r *routes) Print() {
 
 // Find the next-hop (gateway) of the given IP address.
 func (r *routes) Route(dst net.IP) net.IP {
-	if time.Since(r.updatedTime).Seconds() > UPDATE_INTERVAL {
+	if time.Since(r.updatedTime).Seconds() > cUPDATE_INTERVAL {
 		r.update()
 	}
 	for i := range r.routes {
