@@ -98,10 +98,8 @@ func (master *Master) packetHandler(myIdentity int) {
 			bufferedPacket.Return()
 		} else { // unicast
 			nextHopId, err = master.addressPool.GetIdentity(bufferedPacket.Packet.NextHop)
-			if err == nil && master.clients[nextHopId] != nil {
-				if master.september.SendUnicast(myIdentity, nextHopId) {
-					master.clients[nextHopId].Write(bufferedPacket, nil)
-				}
+			if err == nil && master.clients[nextHopId] != nil && master.september.SendUnicast(myIdentity, nextHopId) {
+				master.clients[nextHopId].Write(bufferedPacket, nil)
 			} else {
 				bufferedPacket.Return()
 			}
