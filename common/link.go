@@ -15,7 +15,7 @@ type notifiableBufferedPacket struct {
 	notify         chan byte
 }
 
-func (this *notifiableBufferedPacket) NotifyOrReturn() {
+func (this *notifiableBufferedPacket) notifyOrReturn() {
 	if this.notify != nil {
 		this.notify <- 0
 	} else {
@@ -116,7 +116,7 @@ func (link *Link) writeRoutine() {
 				link.Error = link.encoder.Encode(nbuf.BufferedPacket.Packet)
 			}
 		}
-		nbuf.NotifyOrReturn()
+		nbuf.notifyOrReturn()
 	}
 }
 

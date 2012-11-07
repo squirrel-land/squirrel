@@ -4,7 +4,7 @@ import (
 	"../master"
 )
 
-type StaticUniformPositions struct {
+type staticUniformPositions struct {
 	nodes          []*master.Position
 	spacing        float64
 	next           func(*master.Position, *master.Position, float64)
@@ -12,14 +12,14 @@ type StaticUniformPositions struct {
 }
 
 func NewStaticUniformPositions() master.MobilityManager {
-	return &StaticUniformPositions{}
+	return &staticUniformPositions{}
 }
 
-func (mobilityManager *StaticUniformPositions) ParametersHelp() string {
+func (mobilityManager *staticUniformPositions) ParametersHelp() string {
 	return ""
 }
 
-func (mobilityManager *StaticUniformPositions) Configure(config map[string]interface{}) error {
+func (mobilityManager *staticUniformPositions) Configure(config map[string]interface{}) error {
 	spacing, ok := config["Spacing"].(float64)
 	if ok != true {
 		return ParametersNotValid
@@ -38,14 +38,14 @@ func (mobilityManager *StaticUniformPositions) Configure(config map[string]inter
 	return nil
 }
 
-func (mobilityManager *StaticUniformPositions) GenerateNewNode() (newPosition *master.Position) {
+func (mobilityManager *staticUniformPositions) GenerateNewNode() (newPosition *master.Position) {
 	newPosition = &master.Position{0, 0, 0}
 	mobilityManager.next(mobilityManager.latestPosition, newPosition, mobilityManager.spacing)
 	mobilityManager.latestPosition = newPosition
 	return
 }
 
-func (mobilityManager *StaticUniformPositions) Initialize(nodes []*master.Position) {
+func (mobilityManager *staticUniformPositions) Initialize(nodes []*master.Position) {
 	mobilityManager.nodes = nodes
 }
 

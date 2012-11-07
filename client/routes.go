@@ -25,36 +25,36 @@ type route struct {
 	Gateway net.IP
 }
 
-type routes []*route
+type routeArray []*route
 
-type Routes struct {
-	routes      routes
+type routes struct {
+	routes      routeArray
 	ifName      string
 	updatedTime time.Time
 }
 
 // Create a new routing table monitor that monitors routes on the interface ifName
-func NewRoutes(ifName string) (ret *Routes) {
-	ret = &Routes{ifName: ifName}
+func newRoutes(ifName string) (ret *routes) {
+	ret = &routes{ifName: ifName}
 	ret.update()
 	return
 }
 
-func (r *Routes) initRoutes() {
+func (r *routes) initroutes() {
 	r.routes = make([]*route, 0, INITIAL_ROUTING_TABLE_CACHE_SIZE)
 }
 
-func (r routes) Len() int {
+func (r routeArray) Len() int {
 	return len(r)
 }
 
-func (r routes) Less(i, j int) bool {
+func (r routeArray) Less(i, j int) bool {
 	len_i, _ := r[i].Network.Mask.Size()
 	len_j, _ := r[j].Network.Mask.Size()
 	return len_i > len_j //Descending order
 }
 
-func (r routes) Swap(i, j int) {
+func (r routeArray) Swap(i, j int) {
 	r[i], r[j] = r[j], r[i]
 }
 
@@ -76,13 +76,13 @@ func decodeMaskHex(ipHexStr string) (mask net.IPMask, err error) {
 	return
 }
 
-func (r *Routes) update() (err error) {
+func (r *routes) update() (err error) {
 	file, err := os.OpenFile("/proc/net/route", os.O_RDONLY, 0)
 	if err != nil {
 		fmt.Println("Open /proc/net/route error")
 		return
 	}
-	r.initRoutes()
+	r.initroutes()
 	f := bufio.NewReader(file)
 	line, err := f.ReadString('\n')
 	line, err = f.ReadString('\n')
@@ -108,16 +108,16 @@ func (r *Routes) update() (err error) {
 	return
 }
 
-func (r *Routes) Print() {
-	fmt.Println("---- Routes ----")
+func (r *routes) Print() {
+	fmt.Println("---- routes ----")
 	for i := range r.routes {
 		fmt.Printf("%v\n", r.routes[i])
 	}
-	fmt.Println("-- End Routes --")
+	fmt.Println("-- End routes --")
 }
 
 // Find the next-hop (gateway) of the given IP address.
-func (r *Routes) Route(dst net.IP) net.IP {
+func (r *routes) Route(dst net.IP) net.IP {
 	if time.Since(r.updatedTime).Seconds() > UPDATE_INTERVAL {
 		r.update()
 	}

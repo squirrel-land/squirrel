@@ -6,20 +6,20 @@ import (
 	"math/rand"
 )
 
-type September1st struct {
+type september1st struct {
 	nodes              []*master.Position
 	noDeliveryDistance float64
 }
 
 func NewSeptember1st() master.September {
-	return &September1st{}
+	return &september1st{}
 }
 
-func (september *September1st) ParametersHelp() string {
+func (september *september1st) ParametersHelp() string {
 	return ""
 }
 
-func (september *September1st) Configure(config map[string]interface{}) (err error) {
+func (september *september1st) Configure(config map[string]interface{}) (err error) {
 	dist, ok := config["LowestZeroPacketDeliveryDistance"].(float64)
 	if ok != true {
 		return ParametersNotValid
@@ -28,15 +28,15 @@ func (september *September1st) Configure(config map[string]interface{}) (err err
 	return nil
 }
 
-func (september *September1st) Initialize(nodes []*master.Position) {
+func (september *september1st) Initialize(nodes []*master.Position) {
 	september.nodes = nodes
 }
 
-func (september *September1st) SendUnicast(source int, destination int) bool {
+func (september *september1st) SendUnicast(source int, destination int) bool {
 	return september.isToBeDelivered(source, destination)
 }
 
-func (september *September1st) SendBroadcast(source int, underlying []int) []int {
+func (september *september1st) SendBroadcast(source int, underlying []int) []int {
 	count := 0
 	for i := 1; i < len(september.nodes); i++ {
 		if i != source && september.isToBeDelivered(source, i) {
@@ -47,7 +47,7 @@ func (september *September1st) SendBroadcast(source int, underlying []int) []int
 	return underlying[:count]
 }
 
-func (september *September1st) isToBeDelivered(id1 int, id2 int) bool {
+func (september *september1st) isToBeDelivered(id1 int, id2 int) bool {
 	p1 := september.nodes[id1]
 	p2 := september.nodes[id2]
 	if p1 == nil || p2 == nil {

@@ -23,16 +23,16 @@ type ifReq struct {
 	pad   [0x28 - 0x10 - 2]byte
 }
 
-type Tun struct {
+type tunIF struct {
 	name string
 	file *os.File
 }
 
-func (tun *Tun) Name() string {
+func (tun *tunIF) Name() string {
 	return tun.name
 }
 
-func (tun *Tun) createInterface(ifPattern string) (err error) {
+func (tun *tunIF) createInterface(ifPattern string) (err error) {
 	var req ifReq
 	req.Flags = IFF_TUN | IFF_NO_PI
 	copy(req.Name[:], ifPattern)
@@ -44,12 +44,12 @@ func (tun *Tun) createInterface(ifPattern string) (err error) {
 	return
 }
 
-func NewTun(ifPattern string) (tun *Tun, err error) {
+func newTun(ifPattern string) (tun *tunIF, err error) {
 	file, err := os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
 	if err != nil {
 		return nil, err
 	}
-	tun = &Tun{name: "", file: file}
+	tun = &tunIF{name: "", file: file}
 	err = tun.createInterface(ifPattern)
 	if err != nil {
 		file.Close()
@@ -59,7 +59,7 @@ func NewTun(ifPattern string) (tun *Tun, err error) {
 }
 
 // Read a packet from TUN device. 
-func (tun *Tun) Read() (packet []byte, err error) {
+func (tun *tunIF) Read() (packet []byte, err error) {
 	buf := make([]byte, MAX_PACKET_SIZE)
 	n, err := tun.file.Read(buf)
 	if err != nil && err != io.EOF {
@@ -70,7 +70,7 @@ func (tun *Tun) Read() (packet []byte, err error) {
 }
 
 // Write a packet into TUN device (blocking)
-func (tun *Tun) Write(packet []byte) (err error) {
+func (tun *tunIF) Write(packet []byte) (err error) {
 	_, err = tun.file.Write(packet)
 	return
 }

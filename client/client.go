@@ -10,14 +10,14 @@ import (
 
 type Client struct {
 	link         *common.Link
-	tun          *Tun
-	routes       *Routes
+	tun          *tunIF
+	routes       *routes
 	routinesQuit chan error
 }
 
 // Create a new client along with a TUN network interface whose name is tunName
 func NewClient(tunName string) (client *Client, err error) {
-	tun, err := NewTun(tunName)
+	tun, err := newTun(tunName)
 	client = &Client{
 		link:         nil,
 		tun:          tun,
@@ -59,7 +59,7 @@ func (client *Client) connect(masterAddr string, identity int) (err error) {
 	if err != nil {
 		return
 	}
-	client.routes = NewRoutes(client.tun.Name())
+	client.routes = newRoutes(client.tun.Name())
 	client.link.StartRoutines()
 	return
 }
