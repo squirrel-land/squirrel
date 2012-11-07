@@ -1,9 +1,9 @@
 package master
 
 type Position struct {
-	X      int // Signed. Coordinate X in millimeter.
-	Y      int // Signed. Coordinate Y in millimeter.
-	Height int // Signed. Height(Coordinate Z) in millimeter.
+	X      float64 // Signed. Coordinate X in millimeter.
+	Y      float64 // Signed. Coordinate Y in millimeter.
+	Height float64 // Signed. Height(Coordinate Z) in millimeter.
 }
 
 // Master uses an implementation of MobilityManager interface to simulate the mobility of nodes.

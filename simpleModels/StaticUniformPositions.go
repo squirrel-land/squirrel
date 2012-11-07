@@ -2,17 +2,12 @@ package simpleModels
 
 import (
 	"../master"
-	"errors"
-)
-
-var (
-	ParametersNotValid = errors.New("Parameter(s) are not valid.")
 )
 
 type StaticUniformPositions struct {
 	nodes          []*master.Position
-	spacing        int
-	next           func(*master.Position, *master.Position, int)
+	spacing        float64
+	next           func(*master.Position, *master.Position, float64)
 	latestPosition *master.Position
 }
 
@@ -39,7 +34,7 @@ func (mobilityManager *StaticUniformPositions) Configure(config map[string]inter
 	default:
 		return ParametersNotValid
 	}
-	mobilityManager.spacing = int(spacing)
+	mobilityManager.spacing = spacing
 	return nil
 }
 
@@ -54,7 +49,7 @@ func (mobilityManager *StaticUniformPositions) Initialize(nodes []*master.Positi
 	mobilityManager.nodes = nodes
 }
 
-func staticNextPointLinear(prev *master.Position, next *master.Position, spacing int) {
+func staticNextPointLinear(prev *master.Position, next *master.Position, spacing float64) {
 	if prev == nil {
 		next.X = 0
 		next.Y = 0

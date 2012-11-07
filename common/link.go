@@ -96,6 +96,10 @@ func (link *Link) readRoutine() {
 		if t.Type == MSGPACKET {
 			buf = <-link.buffer
 			link.Error = link.decoder.Decode(buf.Packet)
+			if link.Error != nil {
+				link.ReadPacket <- buf
+				return
+			}
 			link.ReadPacket <- buf
 		}
 	}
