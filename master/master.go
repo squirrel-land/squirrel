@@ -89,7 +89,7 @@ func (master *Master) packetHandler(myIdentity int) {
 			recipients := master.september.SendBroadcast(myIdentity, underlying)
 			for _, id := range recipients {
 				if master.clients[id] != nil { // This is mostly not necessary. Added due to not using locks, just in case.
-					master.clients[id].Write(bufferedPacket, notify)
+					master.clients[id].WriteWithNotify(bufferedPacket, notify)
 				}
 			}
 			for i := 0; i < len(recipients); i++ {
@@ -99,7 +99,7 @@ func (master *Master) packetHandler(myIdentity int) {
 		} else { // unicast
 			nextHopId, err = master.addressPool.GetIdentity(bufferedPacket.Packet.NextHop)
 			if err == nil && master.clients[nextHopId] != nil && master.september.SendUnicast(myIdentity, nextHopId) {
-				master.clients[nextHopId].Write(bufferedPacket, nil)
+				master.clients[nextHopId].WriteAndReturnBuffer(bufferedPacket)
 			} else {
 				bufferedPacket.Return()
 			}

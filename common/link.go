@@ -7,28 +7,25 @@ import (
 )
 
 var (
-	ConnectionClosed = errors.New("Connection is closed.")
+	ConnectionClosed          = errors.New("Connection is closed.")
+	UnKnownTypeInWriteChannel = errors.New("Unknown type sent to write channel.")
 )
 
 type notifiableBufferedPacket struct {
 	BufferedPacket *BufferedPacket
-	notify         chan byte
+	notifyChan     chan byte
 }
 
-func (this *notifiableBufferedPacket) notifyOrReturn() {
-	if this.notify != nil {
-		this.notify <- 0
-	} else {
-		this.BufferedPacket.Return()
-	}
+func (this *notifiableBufferedPacket) notify() {
+	this.notifyChan <- 0
 }
 
 type Link struct {
 	Error       error // indicate whether there's any error encountered.
 	connection  net.Conn
-	buffer      chan *BufferedPacket          // buffer pool. It owns instances of BufferedPacket
-	ReadPacket  chan *BufferedPacket          // The channel used to read a packet from this Link. It is necessary to call .Return() when finishing using the BufferedPacket.
-	writePacket chan notifiableBufferedPacket // The channel to write a packet into this Link.
+	buffer      chan *BufferedPacket // buffer pool. It owns instances of BufferedPacket
+	ReadPacket  chan *BufferedPacket // The channel used to read a packet from this Link. It is necessary to call .Return() when finishing using the BufferedPacket.
+	writePacket chan interface{}     // The channel to write a packet into this Link.
 	encoder     *gob.Encoder
 	decoder     *gob.Decoder
 }
@@ -38,7 +35,7 @@ func NewLink(conn net.Conn) (link *Link) {
 		connection:  conn,
 		buffer:      make(chan *BufferedPacket, BUFFERSIZE),
 		ReadPacket:  make(chan *BufferedPacket, BUFFERSIZE),
-		writePacket: make(chan notifiableBufferedPacket, BUFFERSIZE),
+		writePacket: make(chan interface{}, BUFFERSIZE),
 		encoder:     gob.NewEncoder(conn),
 		decoder:     gob.NewDecoder(conn),
 	}
@@ -106,30 +103,49 @@ func (link *Link) readRoutine() {
 }
 
 func (link *Link) writeRoutine() {
-	var nbuf notifiableBufferedPacket
+	var bufi interface{}
 	packetType := MessageType{Type: MSGPACKET}
 	for {
-		nbuf = <-link.writePacket
 		if link.Error == nil {
+			bufi = <-link.writePacket
 			link.Error = link.encoder.Encode(packetType)
-			if link.Error == nil {
-				link.Error = link.encoder.Encode(nbuf.BufferedPacket.Packet)
+			switch buf := bufi.(type) {
+			case *BufferedPacket:
+				if link.Error == nil {
+					link.Error = link.encoder.Encode(buf.Packet)
+				}
+				buf.Return()
+			case notifiableBufferedPacket:
+				if link.Error == nil {
+					link.Error = link.encoder.Encode(buf.BufferedPacket.Packet)
+				}
+				buf.notify()
+			case *Packet:
+				if link.Error == nil {
+					link.Error = link.encoder.Encode(buf)
+				}
+			default:
+				link.Error = UnKnownTypeInWriteChannel
 			}
 		}
-		nbuf.notifyOrReturn()
 	}
 }
 
 // Write a buffered packet into the link.
-// If notify is nil, the buffered packet is returned to its owner as soon as it's sent completely to the network; otherwise, a value is sent to notify as soon as the buffered packet is sent completely to the network.
-// If notify is not nil, the caller needs to ensure that the buffered packet is returned (.Return()) after finishing using it.
-func (link *Link) Write(bufferedPacket *BufferedPacket, notify chan byte) {
-	nbuf := notifiableBufferedPacket{BufferedPacket: bufferedPacket, notify: notify}
+// The buffered packet is returned to its owner as soon as it's sent completely to the network.
+func (link *Link) WriteAndReturnBuffer(bufferedPacket *BufferedPacket) {
+	link.writePacket <- bufferedPacket
+}
+
+// Write a buffered packet into the link.
+// A value is sent to notify as soon as the buffered packet is sent completely to the network. The caller needs to ensure that the buffered packet is returned (.Return()) after finishing using it.
+func (link *Link) WriteWithNotify(bufferedPacket *BufferedPacket, notify chan byte) {
+	nbuf := notifiableBufferedPacket{BufferedPacket: bufferedPacket, notifyChan: notify}
 	link.writePacket <- nbuf
 }
 
 // Write a packet into the link.
 // Should only be used for unbuffered packet.
 func (link *Link) WriteUnbuffered(packet *Packet) {
-	link.writePacket <- notifiableBufferedPacket{BufferedPacket: &BufferedPacket{Packet: packet}}
+	link.writePacket <- packet
 }
