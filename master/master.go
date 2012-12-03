@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sync"
 )
 
 type Master struct {
@@ -72,7 +73,7 @@ func (master *Master) packetHandler(myIdentity int) {
 		bufferedPacket *common.BufferedPacket
 		nextHopId      int
 		err            error
-		notify         = make(chan byte)
+		wg             = new(sync.WaitGroup)
 		underlying     = make([]int, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
 	)
 
@@ -89,12 +90,11 @@ func (master *Master) packetHandler(myIdentity int) {
 			recipients := master.september.SendBroadcast(myIdentity, underlying)
 			for _, id := range recipients {
 				if master.clients[id] != nil { // This is mostly not necessary. Added due to not using locks, just in case.
-					master.clients[id].WriteWithNotify(bufferedPacket, notify)
+					wg.Add(1)
+					master.clients[id].WriteWithNotify(bufferedPacket, wg)
 				}
 			}
-			for i := 0; i < len(recipients); i++ {
-				<-notify
-			}
+			wg.Wait()
 			bufferedPacket.Return()
 		} else { // unicast
 			nextHopId, err = master.addressPool.GetIdentity(bufferedPacket.Packet.NextHop)

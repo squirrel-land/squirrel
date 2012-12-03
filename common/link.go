@@ -4,6 +4,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"net"
+	"sync"
 )
 
 var (
@@ -13,11 +14,7 @@ var (
 
 type notifiableBufferedPacket struct {
 	BufferedPacket *BufferedPacket
-	notifyChan     chan byte
-}
-
-func (this *notifiableBufferedPacket) notify() {
-	this.notifyChan <- 0
+	waitGroup      *sync.WaitGroup
 }
 
 type Link struct {
@@ -119,7 +116,7 @@ func (link *Link) writeRoutine() {
 				if link.Error == nil {
 					link.Error = link.encoder.Encode(buf.BufferedPacket.Packet)
 				}
-				buf.notify()
+				buf.waitGroup.Done()
 			case *Packet:
 				if link.Error == nil {
 					link.Error = link.encoder.Encode(buf)
@@ -139,8 +136,8 @@ func (link *Link) WriteAndReturnBuffer(bufferedPacket *BufferedPacket) {
 
 // Write a buffered packet into the link.
 // A value is sent to notify as soon as the buffered packet is sent completely to the network. The caller needs to ensure that the buffered packet is returned (.Return()) after finishing using it.
-func (link *Link) WriteWithNotify(bufferedPacket *BufferedPacket, notify chan byte) {
-	nbuf := notifiableBufferedPacket{BufferedPacket: bufferedPacket, notifyChan: notify}
+func (link *Link) WriteWithNotify(bufferedPacket *BufferedPacket, wg *sync.WaitGroup) {
+	nbuf := notifiableBufferedPacket{BufferedPacket: bufferedPacket, waitGroup: wg}
 	link.writePacket <- nbuf
 }
 
