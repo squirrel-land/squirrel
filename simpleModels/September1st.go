@@ -55,6 +55,9 @@ func (september *september1st) isToBeDelivered(id1 int, id2 int) bool {
 	}
 	dist := distance(p1, p2)
 	r := rand.Float64()
+	if dist < september.noDeliveryDistance*0.8 {
+		return true
+	}
 	return r > math.Pow(dist/september.noDeliveryDistance, 4)
 }
 
