@@ -2,6 +2,7 @@ package master
 
 import (
 	"../common"
+	"../modelDep"
 	"errors"
 	"fmt"
 	"net"
@@ -11,15 +12,15 @@ import (
 type Master struct {
 	addressPool     *addressPool
 	clients         []*common.Link
-	mobileNodes     []*Position
-	mobilityManager MobilityManager
-	september       September
+	mobileNodes     []*modelDep.Position
+	mobilityManager modelDep.MobilityManager
+	september       modelDep.September
 }
 
-func NewMaster(network *net.IPNet, mobilityManager MobilityManager, september September) (master *Master) {
+func NewMaster(network *net.IPNet, mobilityManager modelDep.MobilityManager, september modelDep.September) (master *Master) {
 	master = &Master{addressPool: newAddressPool(network), mobilityManager: mobilityManager, september: september}
 	master.clients = make([]*common.Link, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
-	master.mobileNodes = make([]*Position, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
+	master.mobileNodes = make([]*modelDep.Position, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
 	master.mobilityManager.Initialize(master.mobileNodes)
 	master.september.Initialize(master.mobileNodes)
 	return

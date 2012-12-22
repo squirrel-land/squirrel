@@ -1,17 +1,17 @@
 package simpleModels
 
 import (
-	"../master"
+	"../modelDep"
 )
 
 type staticUniformPositions struct {
-	nodes          []*master.Position
+	nodes          []*modelDep.Position
 	spacing        float64
-	next           func(*master.Position, *master.Position, float64)
-	latestPosition *master.Position
+	next           func(*modelDep.Position, *modelDep.Position, float64)
+	latestPosition *modelDep.Position
 }
 
-func NewStaticUniformPositions() master.MobilityManager {
+func NewStaticUniformPositions() modelDep.MobilityManager {
 	return &staticUniformPositions{}
 }
 
@@ -38,18 +38,18 @@ func (mobilityManager *staticUniformPositions) Configure(config map[string]inter
 	return nil
 }
 
-func (mobilityManager *staticUniformPositions) GenerateNewNode() (newPosition *master.Position) {
-	newPosition = &master.Position{0, 0, 0}
+func (mobilityManager *staticUniformPositions) GenerateNewNode() (newPosition *modelDep.Position) {
+	newPosition = &modelDep.Position{0, 0, 0}
 	mobilityManager.next(mobilityManager.latestPosition, newPosition, mobilityManager.spacing)
 	mobilityManager.latestPosition = newPosition
 	return
 }
 
-func (mobilityManager *staticUniformPositions) Initialize(nodes []*master.Position) {
+func (mobilityManager *staticUniformPositions) Initialize(nodes []*modelDep.Position) {
 	mobilityManager.nodes = nodes
 }
 
-func staticNextPointLinear(prev *master.Position, next *master.Position, spacing float64) {
+func staticNextPointLinear(prev *modelDep.Position, next *modelDep.Position, spacing float64) {
 	if prev == nil {
 		next.X = 0
 		next.Y = 0

@@ -1,4 +1,4 @@
-package master
+package modelDep
 
 type Position struct {
 	X      float64 // Signed. Coordinate X in millimeter.

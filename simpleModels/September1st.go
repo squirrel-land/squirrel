@@ -1,17 +1,17 @@
 package simpleModels
 
 import (
-	"../master"
+	"../modelDep"
 	"math"
 	"math/rand"
 )
 
 type september1st struct {
-	nodes              []*master.Position
+	nodes              []*modelDep.Position
 	noDeliveryDistance float64
 }
 
-func NewSeptember1st() master.September {
+func NewSeptember1st() modelDep.September {
 	return &september1st{}
 }
 
@@ -28,7 +28,7 @@ func (september *september1st) Configure(config map[string]interface{}) (err err
 	return nil
 }
 
-func (september *september1st) Initialize(nodes []*master.Position) {
+func (september *september1st) Initialize(nodes []*modelDep.Position) {
 	september.nodes = nodes
 }
 
@@ -59,8 +59,4 @@ func (september *september1st) isToBeDelivered(id1 int, id2 int) bool {
 		return true
 	}
 	return r > math.Pow(dist/september.noDeliveryDistance, 4)
-}
-
-func distance(p1 *master.Position, p2 *master.Position) float64 {
-	return math.Sqrt(math.Pow(p1.X-p2.X, 2) + math.Pow(p1.Y-p2.Y, 2) + math.Pow(p1.Height-p2.Height, 2))
 }

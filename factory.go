@@ -1,21 +1,21 @@
 package main
 
 import (
-	"./master"
+	"./modelDep"
 	"errors"
 )
 
 // To avoid imports in constructors.go
 type (
-	typeMobilityManagerConstructor func() master.MobilityManager
-	typeSeptemberConstructor       func() master.September
+	typeMobilityManagerConstructor func() modelDep.MobilityManager
+	typeSeptemberConstructor       func() modelDep.September
 )
 
 var (
 	notRegistered = errors.New("MobilityManager or September is not registered.")
 )
 
-func newMobilityManager(name string) (mobilityManager master.MobilityManager, err error) {
+func newMobilityManager(name string) (mobilityManager modelDep.MobilityManager, err error) {
 	constructor := mobilityManagers[name]
 	if constructor == nil {
 		return nil, notRegistered
@@ -24,7 +24,7 @@ func newMobilityManager(name string) (mobilityManager master.MobilityManager, er
 	return
 }
 
-func newSeptember(name string) (september master.September, err error) {
+func newSeptember(name string) (september modelDep.September, err error) {
 	constructor := septembers[name]
 	if constructor == nil {
 		return nil, notRegistered
