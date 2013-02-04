@@ -1,9 +1,9 @@
 package client
 
 import (
-	"github.com/songgao/squirrel/common"
 	"errors"
 	"fmt"
+	"github.com/songgao/squirrel/common"
 	"net"
 	"os/exec"
 )

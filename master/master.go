@@ -1,10 +1,10 @@
 package master
 
 import (
-	"github.com/songgao/squirrel/common"
-	"github.com/songgao/squirrel/modelDep"
 	"errors"
 	"fmt"
+	"github.com/songgao/squirrel/common"
+	"github.com/songgao/squirrel/modelDep"
 	"net"
 	"sync"
 )

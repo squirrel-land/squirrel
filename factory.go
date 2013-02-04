@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/songgao/squirrel/modelDep"
 	"errors"
+	"github.com/songgao/squirrel/modelDep"
 )
 
 // To avoid imports in constructors.go

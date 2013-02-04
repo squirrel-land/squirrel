@@ -1,10 +1,10 @@
 package client
 
 import (
-	"github.com/songgao/squirrel/common"
 	"bufio"
 	"encoding/hex"
 	"fmt"
+	"github.com/songgao/squirrel/common"
 	"io"
 	"net"
 	"os"

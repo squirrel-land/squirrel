@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/songgao/squirrel/client"
-	"github.com/songgao/squirrel/master"
 	"flag"
 	"fmt"
+	"github.com/songgao/squirrel/client"
+	"github.com/songgao/squirrel/master"
 	"net"
 )
 
