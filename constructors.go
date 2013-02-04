@@ -10,4 +10,5 @@ var mobilityManagers = map[string]typeMobilityManagerConstructor{
 
 var septembers = map[string]typeSeptemberConstructor{
 	"September1st": simpleModels.NewSeptember1st,
+	"September2nd": simpleModels.NewSeptember2nd,
 }

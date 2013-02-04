@@ -25,10 +25,12 @@ func (this *leakyBucket) In(size int) bool {
 }
 
 func (this *leakyBucket) Go() {
-    sleepTime := time.Duration(this.OutResolution) * time.Millisecond
     go func() {
+        sleepTime := time.Duration(this.OutResolution) * time.Millisecond
         for {
-            atomic.AddInt32(&this.bucket, -int32(atomic.LoadInt32(&this.OutPerMilliSecond) * this.OutResolution))
+            if atomic.LoadInt32(&this.bucket) > 0 {
+                atomic.AddInt32(&this.bucket, -int32(atomic.LoadInt32(&this.OutPerMilliSecond) * this.OutResolution))
+            }
             time.Sleep(sleepTime)
         }
     }()
