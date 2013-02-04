@@ -88,7 +88,7 @@ func (master *Master) packetHandler(myIdentity int) {
 			return
 		}
 		if master.addressPool.IsBroadcast(bufferedPacket.Packet.NextHop) || bufferedPacket.Packet.NextHop.IsMulticast() {
-			recipients := master.september.SendBroadcast(myIdentity, underlying)
+			recipients := master.september.SendBroadcast(myIdentity, len(bufferedPacket.Packet.Packet), underlying)
 			for _, id := range recipients {
 				if master.clients[id] != nil { // This is mostly not necessary. Added due to not using locks, just in case.
 					wg.Add(1)
@@ -99,7 +99,7 @@ func (master *Master) packetHandler(myIdentity int) {
 			bufferedPacket.Return()
 		} else { // unicast
 			nextHopId, err = master.addressPool.GetIdentity(bufferedPacket.Packet.NextHop)
-			if err == nil && master.clients[nextHopId] != nil && master.september.SendUnicast(myIdentity, nextHopId) {
+			if err == nil && master.clients[nextHopId] != nil && master.september.SendUnicast(myIdentity, nextHopId, len(bufferedPacket.Packet.Packet)) {
 				master.clients[nextHopId].WriteAndReturnBuffer(bufferedPacket)
 			} else {
 				bufferedPacket.Return()

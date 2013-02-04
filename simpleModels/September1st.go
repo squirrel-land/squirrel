@@ -32,11 +32,11 @@ func (september *september1st) Initialize(nodes []*modelDep.Position) {
 	september.nodes = nodes
 }
 
-func (september *september1st) SendUnicast(source int, destination int) bool {
+func (september *september1st) SendUnicast(source int, destination int, size int) bool {
 	return september.isToBeDelivered(source, destination)
 }
 
-func (september *september1st) SendBroadcast(source int, underlying []int) []int {
+func (september *september1st) SendBroadcast(source int, size int, underlying []int) []int {
 	count := 0
 	for i := 1; i < len(september.nodes); i++ {
 		if i != source && september.isToBeDelivered(source, i) {
@@ -54,9 +54,8 @@ func (september *september1st) isToBeDelivered(id1 int, id2 int) bool {
 		return false
 	}
 	dist := distance(p1, p2)
-	r := rand.Float64()
 	if dist < september.noDeliveryDistance*0.8 {
 		return true
 	}
-	return r > math.Pow(dist/september.noDeliveryDistance, 4)
+	return rand.Float64() > math.Pow(dist/september.noDeliveryDistance, 4)
 }
