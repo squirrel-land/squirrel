@@ -1,8 +1,8 @@
 package master
 
 import (
-	"../common"
-	"../modelDep"
+	"github.com/songgao/squirrel/common"
+	"github.com/songgao/squirrel/modelDep"
 	"errors"
 	"fmt"
 	"net"

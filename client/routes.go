@@ -1,7 +1,7 @@
 package client
 
 import (
-	"../common"
+	"github.com/songgao/squirrel/common"
 	"bufio"
 	"encoding/hex"
 	"fmt"

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"./simpleModels"
+	"github.com/songgao/squirrelModels"
 )
 
 var mobilityManagers = map[string]typeMobilityManagerConstructor{

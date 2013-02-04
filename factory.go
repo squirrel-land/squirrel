@@ -1,7 +1,7 @@
 package main
 
 import (
-	"./modelDep"
+	"github.com/songgao/squirrel/modelDep"
 	"errors"
 )
 

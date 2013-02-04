@@ -1,8 +1,8 @@
 package main
 
 import (
-	"./client"
-	"./master"
+	"github.com/songgao/squirrel/client"
+	"github.com/songgao/squirrel/master"
 	"flag"
 	"fmt"
 	"net"
