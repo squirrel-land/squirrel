@@ -2,21 +2,16 @@ package main
 
 import (
 	"errors"
-	"github.com/songgao/squirrel/modelDep"
-)
-
-// To avoid imports in constructors.go
-type (
-	typeMobilityManagerConstructor func() modelDep.MobilityManager
-	typeSeptemberConstructor       func() modelDep.September
+	"github.com/songgao/squirrel/models"
+	"github.com/songgao/squirrel/models/common"
 )
 
 var (
 	notRegistered = errors.New("MobilityManager or September is not registered.")
 )
 
-func newMobilityManager(name string) (mobilityManager modelDep.MobilityManager, err error) {
-	constructor := mobilityManagers[name]
+func newMobilityManager(name string) (mobilityManager common.MobilityManager, err error) {
+	constructor := models.MobilityManagers[name]
 	if constructor == nil {
 		return nil, notRegistered
 	}
@@ -24,8 +19,8 @@ func newMobilityManager(name string) (mobilityManager modelDep.MobilityManager, 
 	return
 }
 
-func newSeptember(name string) (september modelDep.September, err error) {
-	constructor := septembers[name]
+func newSeptember(name string) (september common.September, err error) {
+	constructor := models.Septembers[name]
 	if constructor == nil {
 		return nil, notRegistered
 	}

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/songgao/squirrel/common"
-	"github.com/songgao/squirrel/modelDep"
+	mcommon "github.com/songgao/squirrel/models/common"
 	"net"
 	"sync"
 )
@@ -12,15 +12,15 @@ import (
 type Master struct {
 	addressPool     *addressPool
 	clients         []*common.Link
-	mobileNodes     []*modelDep.Position
-	mobilityManager modelDep.MobilityManager
-	september       modelDep.September
+	mobileNodes     []*mcommon.Position
+	mobilityManager mcommon.MobilityManager
+	september       mcommon.September
 }
 
-func NewMaster(network *net.IPNet, mobilityManager modelDep.MobilityManager, september modelDep.September) (master *Master) {
+func NewMaster(network *net.IPNet, mobilityManager mcommon.MobilityManager, september mcommon.September) (master *Master) {
 	master = &Master{addressPool: newAddressPool(network), mobilityManager: mobilityManager, september: september}
 	master.clients = make([]*common.Link, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
-	master.mobileNodes = make([]*modelDep.Position, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
+	master.mobileNodes = make([]*mcommon.Position, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
 	master.mobilityManager.Initialize(master.mobileNodes)
 	master.september.Initialize(master.mobileNodes)
 	return
