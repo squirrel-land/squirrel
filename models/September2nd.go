@@ -11,16 +11,30 @@ type september2nd struct {
 	noDeliveryDistance float64
 	interferenceRange  float64
 
-	nodes       []*common.Position
-	buckets     []*leakyBucket // measured by bytes of data; if non-maxDataRate is used, value added into buckets is the number of bytes that could be sent on maxDataRate within the same amount of time
-	dataRates   []float64      // supported data rates in Mbps in increasing order
-	maxDataRate float64
+	nodes    []*common.Position
+	buckets  []*leakyBucket // measured by number of nanoseconds used;
+	dataRate float64        // bit data rates in bit/nanosecond 
+
+	// MAC layer time in nanoseconds
+	difs  int
+	sifs  int
+	slot  int
+	cwMin int
+
+	// MAC layer frame properties in bits
+	macFrameMaxBody  int
+	macFrameOverhead int
 }
 
 func NewSeptember2nd() common.September {
 	ret := new(september2nd)
-	ret.dataRates = []float64{6, 9, 12, 18, 24, 36, 48, 54}
-	ret.maxDataRate = ret.dataRates[len(ret.dataRates)-1]
+	ret.dataRate = 54 * 1024 * 1024 * 1e-9 // 54 Mbps
+	ret.slot = 9e3                         // 9 microseconds
+	ret.sifs = 10e3                        // 10 microseconds
+	ret.difs = ret.sifs + 2*ret.slot       // 28 microseconds
+	ret.cwMin = 31
+	ret.macFrameMaxBody = 2312 * 8
+	ret.macFrameOverhead = 34
 	return ret
 }
 
@@ -47,12 +61,30 @@ func (september *september2nd) Initialize(nodes []*common.Position) {
 	september.buckets = make([]*leakyBucket, len(nodes), len(nodes))
 	for it := range september.buckets {
 		september.buckets[it] = &leakyBucket{
-			BucketSize:        int32(1024 * 1024 * september.maxDataRate / 8), // in bytes
-			OutResolution:     int32(10),
-			OutPerMilliSecond: int32(1024 * 1024 * september.maxDataRate / 1000 / 8), // in bytes
+			BucketSize:        int32(1000 * 1000 * 1000), // 1 second
+			OutResolution:     int32(10),                 //10 millisecond
+			OutPerMilliSecond: int32(1000 * 1000),        // 1000 microseconds gone every milliscond
 		}
 		september.buckets[it].Go()
 	}
+}
+
+func (september *september2nd) nanosecByData(bytes int) int {
+	framebody := int(float64(bytes*8) / september.dataRate)
+	frameOverhead := september.macFrameOverhead * (bytes*8/september.macFrameMaxBody + 1)
+	return framebody + frameOverhead
+}
+
+func (september *september2nd) cw() int {
+	return september.slot * september.cwMin / 2
+}
+
+func (september *september2nd) nanosecByPacket(packetSize int) int {
+	return september.difs + september.cw() + september.nanosecByData(packetSize) + september.sifs + september.nanosecByData(0) // the last nanosecByData(0) is for MAC layer ACK
+}
+
+func (september *september2nd) ackIntererence() int {
+	return september.difs + september.cw() + september.sifs + september.nanosecByData(0)
 }
 
 func (september *september2nd) SendUnicast(source int, destination int, size int) bool {
@@ -64,26 +96,35 @@ func (september *september2nd) SendUnicast(source int, destination int, size int
 	dist := distance(p1, p2)
 
 	// Go through source bucket
-	if !september.buckets[source].In(size) {
+	if !september.buckets[source].In(september.nanosecByPacket(size)) {
 		return false
 	}
 
 	// Since the packet is out in the air, interference should be put on neighbor nodes
 	for i := 1; i < len(september.nodes); i++ {
-		if i != source && i != destination && dist < september.interferenceRange {
-			september.buckets[i].In(size)
+		n := september.nodes[i]
+		if i != source && i != destination && n != nil {
+			if rand.Float64() < 1-math.Pow(distance(p1, n)/september.interferenceRange, 5) {
+				september.buckets[i].In(september.nanosecByPacket(size))
+			} else if rand.Float64() < 1-math.Pow(distance(p2, n)/september.interferenceRange, 5) {
+				september.buckets[i].In(september.ackIntererence())
+			}
 		}
 	}
 
 	// The packet takes the adventure in the air (fading, etc.)
 	if dist > september.noDeliveryDistance*0.85 {
-		if rand.Float64() < math.Pow(dist/september.noDeliveryDistance, 5) {
+		if rand.Float64() < math.Pow(dist/september.noDeliveryDistance, 3) {
+			return false
+		}
+	} else {
+		if rand.Float64() < math.Pow(dist/september.noDeliveryDistance, 8) {
 			return false
 		}
 	}
 
 	// Go through destination bucket
-	if !september.buckets[destination].In(size) {
+	if !september.buckets[destination].In(september.nanosecByPacket(size)) {
 		return false
 	}
 
@@ -110,9 +151,8 @@ func (september *september2nd) SendBroadcast(source int, size int, underlying []
 		}
 		dist := distance(p1, p2)
 
-		// Since the packet is out in the air, interference should be put on neighbor nodes
 		if dist < september.interferenceRange {
-			if !september.buckets[i].In(size) {
+			if !september.buckets[i].In(september.nanosecByPacket(size)) {
 				// Go through destination bucket. If rejected by the bucket, the broadcasted packet should not be delivered to this node
 				continue
 			}
@@ -120,7 +160,11 @@ func (september *september2nd) SendBroadcast(source int, size int, underlying []
 
 		// The packet takes the adventure in the air (fading, etc.). There's still a possibility the packet is not delivered to this node
 		if dist > september.noDeliveryDistance*0.85 {
-			if rand.Float64() < math.Pow(dist/september.noDeliveryDistance, 5) {
+			if rand.Float64() < math.Pow(dist/september.noDeliveryDistance, 3) {
+				continue
+			}
+		} else {
+			if rand.Float64() < math.Pow(dist/september.noDeliveryDistance, 8) {
 				continue
 			}
 		}
@@ -130,8 +174,4 @@ func (september *september2nd) SendBroadcast(source int, size int, underlying []
 		count++
 	}
 	return underlying[:count]
-}
-
-func (september *september2nd) dataRate(src, dst int) float64 {
-	return september.dataRates[len(september.dataRates)-1]
 }
