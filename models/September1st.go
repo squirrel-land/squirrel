@@ -48,6 +48,11 @@ func (september *september1st) SendBroadcast(source int, size int, underlying []
 }
 
 func (september *september1st) isToBeDelivered(id1 int, id2 int) bool {
+	september.nodes[id1].Mu.RLock()
+	september.nodes[id2].Mu.RLock()
+	defer september.nodes[id1].Mu.RUnlock()
+	defer september.nodes[id2].Mu.RUnlock()
+
 	p1 := september.nodes[id1]
 	p2 := september.nodes[id2]
 	if p1 == nil || p2 == nil {

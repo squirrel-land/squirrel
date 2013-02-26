@@ -93,17 +93,25 @@ func (september *september2nd) SendUnicast(source int, destination int, size int
 	if p1 == nil || p2 == nil {
 		return false
 	}
-	dist := distance(p1, p2)
 
 	// Go through source bucket
 	if !september.buckets[source].In(september.nanosecByPacket(size)) {
 		return false
 	}
 
+	p1.Mu.RLock()
+	p2.Mu.RLock()
+	defer p1.Mu.RUnlock()
+	defer p2.Mu.RUnlock()
+
+	dist := distance(p1, p2)
+
 	// Since the packet is out in the air, interference should be put on neighbor nodes
 	for i := 1; i < len(september.nodes); i++ {
 		n := september.nodes[i]
 		if i != source && i != destination && n != nil {
+			n.Mu.RLock()
+			defer n.Mu.RUnlock()
 			if rand.Float64() < 1-math.Pow(distance(p1, n)/september.interferenceRange, 5) {
 				september.buckets[i].In(september.nanosecByPacket(size))
 			} else if rand.Float64() < 1-math.Pow(distance(p2, n)/september.interferenceRange, 5) {
@@ -137,11 +145,13 @@ func (september *september2nd) SendBroadcast(source int, size int, underlying []
 	if p1 == nil {
 		return underlying[:0]
 	}
-
 	// Go through source bucket
 	if !september.buckets[source].In(size) {
 		return underlying[:0]
 	}
+
+	p1.Mu.RLock()
+	defer p1.Mu.RUnlock()
 
 	count := 0
 	for i := 1; i < len(september.nodes); i++ {
@@ -149,8 +159,11 @@ func (september *september2nd) SendBroadcast(source int, size int, underlying []
 		if p2 == nil {
 			continue
 		}
-		dist := distance(p1, p2)
 
+		p2.Mu.RLock()
+		defer p2.Mu.RUnlock()
+
+		dist := distance(p1, p2)
 		if dist < september.interferenceRange {
 			if !september.buckets[i].In(september.nanosecByPacket(size)) {
 				// Go through destination bucket. If rejected by the bucket, the broadcasted packet should not be delivered to this node

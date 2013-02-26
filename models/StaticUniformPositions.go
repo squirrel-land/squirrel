@@ -39,7 +39,7 @@ func (mobilityManager *staticUniformPositions) Configure(config map[string]inter
 }
 
 func (mobilityManager *staticUniformPositions) GenerateNewNode() (newPosition *common.Position) {
-	newPosition = &common.Position{0, 0, 0}
+	newPosition = common.NewPosition()
 	mobilityManager.next(mobilityManager.latestPosition, newPosition, mobilityManager.spacing)
 	mobilityManager.latestPosition = newPosition
 	return

@@ -1,9 +1,20 @@
 package common
 
+import (
+	"sync"
+)
+
 type Position struct {
 	X      float64 // Signed. Coordinate X in millimeter.
 	Y      float64 // Signed. Coordinate Y in millimeter.
 	Height float64 // Signed. Height(Coordinate Z) in millimeter.
+
+	Mu *sync.RWMutex //Read/Write Lock
+}
+
+// Return an empty Position pointer
+func NewPosition() *Position {
+	return &Position{0, 0, 0, new(sync.RWMutex)}
 }
 
 // Master uses an implementation of MobilityManager interface to simulate the mobility of nodes.
