@@ -16,7 +16,15 @@ func NewStaticUniformPositions() common.MobilityManager {
 }
 
 func (mobilityManager *staticUniformPositions) ParametersHelp() string {
-	return ""
+	return `StaticUniformPositions is a mobility manager in which nodes are not mobile.
+Nodes are positioned uniformly on a grid map.
+
+  "Spacing": float64, required;
+             Space between nodes.
+  "Shape":   string, required;
+             The shape which positions of nodes should follow; can be one of
+             ["Linear"].
+    `
 }
 
 func (mobilityManager *staticUniformPositions) Configure(config map[string]interface{}) error {

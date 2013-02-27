@@ -39,7 +39,16 @@ func NewSeptember2nd() common.September {
 }
 
 func (september *september2nd) ParametersHelp() string {
-	return ""
+	return `
+September2nd delivers packets based on a near 802.11 Ad-hoc model. It considers
+distance between nodes and interference, etc..
+
+  "LowestZeroPacketDeliveryDistance": float64, required;
+                                      Maximum transmission range.
+  "InterferenceRange":                float64, required;
+                                      Maximum interference range, normally
+                                      slighly larger than 2x transmission range.
+    `
 }
 
 func (september *september2nd) Configure(config map[string]interface{}) (err error) {

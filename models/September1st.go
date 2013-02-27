@@ -16,7 +16,14 @@ func NewSeptember1st() common.September {
 }
 
 func (september *september1st) ParametersHelp() string {
-	return ""
+	return `September1st delivers packets only based on distance between nodes. It applies
+a packet loss (d/D)^4 to each packet, where d is the distance between the two
+nodes, and D is the maximum communication range. It does not consider
+interference.
+
+  "LowestZeroPacketDeliveryDistance": float64, required;
+                                      Maximum transmission range.
+    `
 }
 
 func (september *september1st) Configure(config map[string]interface{}) (err error) {
