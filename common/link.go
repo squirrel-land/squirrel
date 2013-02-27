@@ -17,6 +17,7 @@ type notifiableBufferedPacket struct {
 	waitGroup      *sync.WaitGroup
 }
 
+// A Link can send or receive packets. It uses channels internally and is thread-safe. To avoid too much GC, a circular buffer is used for reading packets. Buffered packets are owned by Link and should be returned once they are not useful to whoever reads them from here.
 type Link struct {
 	Error       error // indicate whether there's any error encountered.
 	connection  net.Conn

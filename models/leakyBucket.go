@@ -37,6 +37,10 @@ func (this *leakyBucket) Go() {
 	}()
 }
 
+func (this *leakyBucket) Usage() float64 {
+	return float64(atomic.LoadInt32(&this.bucket)) / float64(this.BucketSize)
+}
+
 func (this *leakyBucket) UpdateOutRate(outPerMilliSecond int) {
 	atomic.StoreInt32(&this.OutPerMilliSecond, int32(outPerMilliSecond))
 }

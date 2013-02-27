@@ -16,10 +16,10 @@ type september2nd struct {
 	dataRate float64        // bit data rates in bit/nanosecond 
 
 	// MAC layer time in nanoseconds
-	difs  int
-	sifs  int
-	slot  int
-	cwMin int
+	difs    int
+	sifs    int
+	slot    int
+	cWindow int // assuming fixed MAC layer contention window
 
 	// MAC layer frame properties in bits
 	macFrameMaxBody  int
@@ -32,7 +32,7 @@ func NewSeptember2nd() common.September {
 	ret.slot = 9e3                         // 9 microseconds
 	ret.sifs = 10e3                        // 10 microseconds
 	ret.difs = ret.sifs + 2*ret.slot       // 28 microseconds
-	ret.cwMin = 31
+	ret.cWindow = 127                      // 127 slots
 	ret.macFrameMaxBody = 2312 * 8
 	ret.macFrameOverhead = 34
 	return ret
@@ -76,7 +76,7 @@ func (september *september2nd) nanosecByData(bytes int) int {
 }
 
 func (september *september2nd) cw() int {
-	return september.slot * september.cwMin / 2
+	return september.slot * september.cWindow / 2
 }
 
 func (september *september2nd) nanosecByPacket(packetSize int) int {
@@ -85,6 +85,13 @@ func (september *september2nd) nanosecByPacket(packetSize int) int {
 
 func (september *september2nd) ackIntererence() int {
 	return september.difs + september.cw() + september.sifs + september.nanosecByData(0)
+}
+
+func (september *september2nd) deliverRate(dest int, dist float64) float64 {
+	usage := september.buckets[dest].Usage()
+	t_mean := (1-usage)*.1 + .9 // usage transformed from [0, 1] to [.93, 1]
+	//r := rand.NormFloat64() * 0.03 + t_mean // Normal dist ~N(t_mean, 0.03^2)
+	return t_mean * (1 - math.Pow(dist/september.noDeliveryDistance, 3))
 }
 
 func (september *september2nd) SendUnicast(source int, destination int, size int) bool {
@@ -112,23 +119,17 @@ func (september *september2nd) SendUnicast(source int, destination int, size int
 		if i != source && i != destination && n != nil {
 			n.Mu.RLock()
 			defer n.Mu.RUnlock()
-			if rand.Float64() < 1-math.Pow(distance(p1, n)/september.interferenceRange, 5) {
+			if rand.Float64() < 1-math.Pow(distance(p1, n)/september.interferenceRange, 6) {
 				september.buckets[i].In(september.nanosecByPacket(size))
-			} else if rand.Float64() < 1-math.Pow(distance(p2, n)/september.interferenceRange, 5) {
+			} else if rand.Float64() < 1-math.Pow(distance(p2, n)/september.interferenceRange, 6) {
 				september.buckets[i].In(september.ackIntererence())
 			}
 		}
 	}
 
 	// The packet takes the adventure in the air (fading, etc.)
-	if dist > september.noDeliveryDistance*0.85 {
-		if rand.Float64() < math.Pow(dist/september.noDeliveryDistance, 3) {
-			return false
-		}
-	} else {
-		if rand.Float64() < math.Pow(dist/september.noDeliveryDistance, 8) {
-			return false
-		}
+	if rand.Float64() > september.deliverRate(destination, dist) {
+		return false
 	}
 
 	// Go through destination bucket
@@ -172,14 +173,8 @@ func (september *september2nd) SendBroadcast(source int, size int, underlying []
 		}
 
 		// The packet takes the adventure in the air (fading, etc.). There's still a possibility the packet is not delivered to this node
-		if dist > september.noDeliveryDistance*0.85 {
-			if rand.Float64() < math.Pow(dist/september.noDeliveryDistance, 3) {
-				continue
-			}
-		} else {
-			if rand.Float64() < math.Pow(dist/september.noDeliveryDistance, 8) {
-				continue
-			}
+		if rand.Float64() > september.deliverRate(i, dist) {
+			continue
 		}
 
 		// The packet is gonna be delivered!
