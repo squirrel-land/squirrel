@@ -11,7 +11,7 @@ type september1st struct {
 	noDeliveryDistance float64
 }
 
-func NewSeptember1st() common.September {
+func newSeptember1st() common.September {
 	return &september1st{}
 }
 

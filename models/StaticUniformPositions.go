@@ -11,7 +11,7 @@ type staticUniformPositions struct {
 	latestPosition *common.Position
 }
 
-func NewStaticUniformPositions() common.MobilityManager {
+func newStaticUniformPositions() common.MobilityManager {
 	return &staticUniformPositions{}
 }
 

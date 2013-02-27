@@ -26,7 +26,7 @@ type september2nd struct {
 	macFrameOverhead int
 }
 
-func NewSeptember2nd() common.September {
+func newSeptember2nd() common.September {
 	ret := new(september2nd)
 	ret.dataRate = 54 * 1024 * 1024 * 1e-9 // 54 Mbps
 	ret.slot = 9e3                         // 9 microseconds

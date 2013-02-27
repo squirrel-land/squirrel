@@ -5,10 +5,10 @@ import (
 )
 
 var MobilityManagers = map[string]func() common.MobilityManager{
-	"StaticUniformPositions": NewStaticUniformPositions,
+	"StaticUniformPositions": newStaticUniformPositions,
 }
 
 var Septembers = map[string]func() common.September{
-	"September1st": NewSeptember1st,
-	"September2nd": NewSeptember2nd,
+	"September1st": newSeptember1st,
+	"September2nd": newSeptember2nd,
 }
