@@ -4,7 +4,7 @@ Squirrel is a platform that emulates 802.11 networks over ethernet. It helps tes
 
 Squirrel works above *Data Link Layer (Layer 2)* and (slightly) below *Network Layer (Layer 3)* in OSI. It creates TUN interface that programs see as a network interface just like `wlan0`. Squirrel handles the TUN interface and bridges multiple nodes into a virtual 802.11 wireless network, and applies packet loss, traffic shaping, etc. to IP packets sent through it.
 
-Squirrel has a simple plugin mechanism that enables developing models. There are two types of models, `MobilityManager` and `September`[2] (see [models/common](http://godoc.org/github.com/songgao/squirrel/models/common)). `MobilityManager` assigns and updates virtual position for each mobile node; `September` decides for each packet whether it should be delivered or not.
+Squirrel has a simple plugin mechanism that enables developing models. There are two types of models, `MobilityManager` and `September`[2]. (see [models/common](http://godoc.org/github.com/songgao/squirrel/models/common)) `MobilityManager` assigns and updates virtual position for each mobile node; `September` decides for each packet whether it should be delivered or not.
 
 [1]: It's possible for other unix but currently it only supports Linux.  
 [2]: The name *September* is from a science fiction TV series [*Fringe*](http://en.wikipedia.org/wiki/Fringe_(TV_series)), in which *September* is the name of an *Observer* who helped save humanity.
