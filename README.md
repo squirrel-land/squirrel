@@ -6,7 +6,7 @@ Squirrel works above *Data Link Layer (Layer 2)* and (slightly) below *Network L
 
 Squirrel has a simple plugin mechanism that enables developing models. There are two types of models, `MobilityManager` and `September`[2] (see [models/common](http://godoc.org/github.com/songgao/squirrel/models/common)). `MobilityManager` assigns and updates virtual position for each mobile node; `September` decides for each packet whether it should be delivered or not.
 
-[1]: It's possible for other unix but currently it only supports Linux.
+[1]: It's possible for other unix but currently it only supports Linux.  
 [2]: The name *September* is from a science fiction TV series [*Fringe*](http://en.wikipedia.org/wiki/Fringe_(TV_series)), in which *September* is the name of an *Observer* who helped save humanity.
 
 ## Install
