@@ -12,30 +12,30 @@ var (
 	UnKnownTypeInWriteChannel = errors.New("Unknown type sent to write channel.")
 )
 
-type notifiableBufferedPacket struct {
-	BufferedPacket *BufferedPacket
-	waitGroup      *sync.WaitGroup
+type notifiableBufferedFrame struct {
+	BufferedFrame *BufferedFrame
+	waitGroup     *sync.WaitGroup
 }
 
-// A Link can send or receive packets. It uses channels internally and is thread-safe. To avoid too much GC, a circular buffer is used for reading packets. Buffered packets are owned by Link and should be returned once they are not useful to whoever reads them from here.
+// A Link can send or receive frames. It uses channels internally and is thread-safe. To avoid too much GC, a circular buffer is used for reading frames. Buffered frames are owned by Link and should be returned once they are not useful to whoever reads them from here.
 type Link struct {
-	Error       error // indicate whether there's any error encountered.
-	connection  net.Conn
-	buffer      chan *BufferedPacket // buffer pool. It owns instances of BufferedPacket
-	ReadPacket  chan *BufferedPacket // The channel used to read a packet from this Link. It is necessary to call .Return() when finishing using the BufferedPacket.
-	writePacket chan interface{}     // The channel to write a packet into this Link.
-	encoder     *gob.Encoder
-	decoder     *gob.Decoder
+	Error      error // indicate whether there's any error encountered.
+	connection net.Conn
+	buffer     chan *BufferedFrame // buffer pool. It owns instances of BufferedFrame
+	ReadFrame  chan *BufferedFrame // The channel used to read a frame from this Link. It is necessary to call .Return() when finishing using the BufferedFrame.
+	writeFrame chan interface{}    // The channel to write a frame into this Link.
+	encoder    *gob.Encoder
+	decoder    *gob.Decoder
 }
 
 func NewLink(conn net.Conn) (link *Link) {
 	return &Link{
-		connection:  conn,
-		buffer:      make(chan *BufferedPacket, BUFFERSIZE),
-		ReadPacket:  make(chan *BufferedPacket, BUFFERSIZE),
-		writePacket: make(chan interface{}, BUFFERSIZE),
-		encoder:     gob.NewEncoder(conn),
-		decoder:     gob.NewDecoder(conn),
+		connection: conn,
+		buffer:     make(chan *BufferedFrame, BUFFERSIZE),
+		ReadFrame:  make(chan *BufferedFrame, BUFFERSIZE),
+		writeFrame: make(chan interface{}, BUFFERSIZE),
+		encoder:    gob.NewEncoder(conn),
+		decoder:    gob.NewDecoder(conn),
 	}
 }
 
@@ -66,7 +66,7 @@ func (link *Link) GetJoinRsp() (rsp *JoinRsp, err error) {
 // Start routines that handle non-blocking read/write. This should be called only after initialization(req/rsp) process.
 func (link *Link) StartRoutines() {
 	for i := 0; i < BUFFERSIZE; i++ {
-		link.buffer <- NewBufferedPacket(link.buffer)
+		link.buffer <- NewBufferedFrame(link.buffer)
 	}
 	go link.readRoutine()
 	go link.writeRoutine()
@@ -74,10 +74,10 @@ func (link *Link) StartRoutines() {
 
 func (link *Link) readRoutine() {
 	var t MessageType
-	var buf *BufferedPacket
+	var buf *BufferedFrame
 	for {
 		if link.Error != nil {
-			link.ReadPacket <- nil
+			link.ReadFrame <- nil
 			return
 		}
 		link.Error = link.decoder.Decode(&t)
@@ -85,40 +85,40 @@ func (link *Link) readRoutine() {
 			link.Error = ConnectionClosed
 		}
 		if link.Error != nil {
-			link.ReadPacket <- nil
+			link.ReadFrame <- nil
 			return
 		}
-		if t.Type == MSGPACKET {
+		if t.Type == MSGFRAME {
 			buf = <-link.buffer
-			link.Error = link.decoder.Decode(buf.Packet)
+			link.Error = link.decoder.Decode(&buf.Frame)
 			if link.Error != nil {
-				link.ReadPacket <- buf
+				link.ReadFrame <- buf
 				return
 			}
-			link.ReadPacket <- buf
+			link.ReadFrame <- buf
 		}
 	}
 }
 
 func (link *Link) writeRoutine() {
 	var bufi interface{}
-	packetType := MessageType{Type: MSGPACKET}
+	messageType := MessageType{Type: MSGFRAME}
 	for {
 		if link.Error == nil {
-			bufi = <-link.writePacket
-			link.Error = link.encoder.Encode(packetType)
+			bufi = <-link.writeFrame
+			link.Error = link.encoder.Encode(messageType)
 			switch buf := bufi.(type) {
-			case *BufferedPacket:
+			case *BufferedFrame:
 				if link.Error == nil {
-					link.Error = link.encoder.Encode(buf.Packet)
+					link.Error = link.encoder.Encode(buf.Frame)
 				}
 				buf.Return()
-			case notifiableBufferedPacket:
+			case notifiableBufferedFrame:
 				if link.Error == nil {
-					link.Error = link.encoder.Encode(buf.BufferedPacket.Packet)
+					link.Error = link.encoder.Encode(buf.BufferedFrame.Frame)
 				}
 				buf.waitGroup.Done()
-			case *Packet:
+			case Frame:
 				if link.Error == nil {
 					link.Error = link.encoder.Encode(buf)
 				}
@@ -129,21 +129,21 @@ func (link *Link) writeRoutine() {
 	}
 }
 
-// Write a buffered packet into the link.
-// The buffered packet is returned to its owner as soon as it's sent completely to the network.
-func (link *Link) WriteAndReturnBuffer(bufferedPacket *BufferedPacket) {
-	link.writePacket <- bufferedPacket
+// Write a buffered frame into the link.
+// The buffered frame is returned to its owner as soon as it's sent completely to the network.
+func (link *Link) WriteAndReturnBuffer(bufferedFrame *BufferedFrame) {
+	link.writeFrame <- bufferedFrame
 }
 
-// Write a buffered packet into the link.
-// A value is sent to notify as soon as the buffered packet is sent completely to the network. The caller needs to ensure that the buffered packet is returned (.Return()) after finishing using it.
-func (link *Link) WriteWithNotify(bufferedPacket *BufferedPacket, wg *sync.WaitGroup) {
-	nbuf := notifiableBufferedPacket{BufferedPacket: bufferedPacket, waitGroup: wg}
-	link.writePacket <- nbuf
+// Write a buffered frame into the link.
+// A value is sent to notify as soon as the buffered frame is sent completely to the network. The caller needs to ensure that the buffered frame is returned (.Return()) after finishing using it.
+func (link *Link) WriteWithNotify(bufferedFrame *BufferedFrame, wg *sync.WaitGroup) {
+	nbuf := notifiableBufferedFrame{BufferedFrame: bufferedFrame, waitGroup: wg}
+	link.writeFrame <- nbuf
 }
 
-// Write a packet into the link.
-// Should only be used for unbuffered packet.
-func (link *Link) WriteUnbuffered(packet *Packet) {
-	link.writePacket <- packet
+// Write a frame into the link.
+// Should only be used for unbuffered frame.
+func (link *Link) WriteUnbuffered(frame Frame) {
+	link.writeFrame <- frame
 }

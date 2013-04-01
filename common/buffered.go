@@ -2,21 +2,22 @@ package common
 
 const (
 	BUFFERSIZE = 32
+	FRAMESIZE  = 1522
 )
 
-// a Packet wrapper that holds a reference to the channel that owns it
-type BufferedPacket struct {
-	Packet *Packet
-	owner  chan *BufferedPacket
+// a Frame wrapper that holds a reference to the channel that owns it
+type BufferedFrame struct {
+	Frame Frame
+	owner chan *BufferedFrame
 }
 
-func NewBufferedPacket(owner chan *BufferedPacket) *BufferedPacket {
-	packet := new(Packet)
-	return &BufferedPacket{Packet: packet, owner: owner}
+func NewBufferedFrame(owner chan *BufferedFrame) *BufferedFrame {
+	frame := make(Frame, FRAMESIZE)
+	return &BufferedFrame{Frame: frame, owner: owner}
 }
 
-// send the BufferedPacket back to its owner channel for further use
-func (buf *BufferedPacket) Return() {
+// send the BufferedFrame back to its owner channel for further use
+func (buf *BufferedFrame) Return() {
 	if buf.owner != nil {
 		buf.owner <- buf
 	}

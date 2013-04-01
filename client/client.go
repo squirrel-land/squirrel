@@ -4,36 +4,36 @@ import (
 	"errors"
 	"fmt"
 	"github.com/songgao/squirrel/common"
+	"github.com/songgao/water"
 	"net"
 	"os/exec"
 )
 
 type Client struct {
 	link         *common.Link
-	tun          *tunIF
-	routes       *routes
+	tap          *water.Interface
 	routinesQuit chan error
 }
 
-// Create a new client along with a TUN network interface whose name is tunName
-func NewClient(tunName string) (client *Client, err error) {
-	tun, err := newTun(tunName)
+// Create a new client along with a TAP network interface whose name is tapName
+func NewClient(tapName string) (client *Client, err error) {
+	tap, err := water.NewTAP(tapName)
 	client = &Client{
 		link:         nil,
-		tun:          tun,
+		tap:          tap,
 		routinesQuit: make(chan error),
 	}
 	return
 }
 
-func (client *Client) configureTun(joinRsp *common.JoinRsp) (err error) {
+func (client *Client) configureTap(joinRsp *common.JoinRsp) (err error) {
 	m, _ := joinRsp.Mask.Size()
 	addr := fmt.Sprintf("%s/%d", joinRsp.Address.String(), m)
-	err = exec.Command("ip", "addr", "add", addr, "dev", client.tun.Name()).Run()
+	err = exec.Command("ip", "addr", "add", addr, "dev", client.tap.Name()).Run()
 	if err != nil {
 		return
 	}
-	err = exec.Command("ip", "link", "set", "dev", client.tun.Name(), "up").Run()
+	err = exec.Command("ip", "link", "set", "dev", client.tap.Name(), "up").Run()
 	return
 }
 
@@ -44,7 +44,9 @@ func (client *Client) connect(masterAddr string, identity int) (err error) {
 	}
 	client.link = common.NewLink(connection)
 
-	err = client.link.SendJoinReq(&common.JoinReq{Identity: identity})
+	var ifce *net.Interface
+	ifce, err = net.InterfaceByName(client.tap.Name())
+	err = client.link.SendJoinReq(&common.JoinReq{Identity: identity, MACAddr: ifce.HardwareAddr})
 	if err != nil {
 		return
 	}
@@ -55,40 +57,41 @@ func (client *Client) connect(masterAddr string, identity int) (err error) {
 	if rsp.Success != true {
 		return errors.New("Join failed. Possiblly the Identity number in config file is duplicate on master.")
 	}
-	err = client.configureTun(rsp)
+	err = client.configureTap(rsp)
 	if err != nil {
 		return
 	}
-	client.routes = newRoutes(client.tun.Name())
 	client.link.StartRoutines()
 	return
 }
 
-func (client *Client) tun2master() {
-	var pac []byte
+func (client *Client) tap2master() {
 	var err error
+	buffer := make(chan *common.BufferedFrame, common.BUFFERSIZE)
+	for i := 0; i < common.BUFFERSIZE; i++ {
+		buffer <- common.NewBufferedFrame(buffer)
+	}
 	for {
-		pac, err = client.tun.Read()
+		buf := <-buffer
+		_, err = client.tap.Read(buf.Frame)
 		if err != nil {
 			client.routinesQuit <- err
 			return
 		}
-		packet := &common.Packet{Packet: pac}
-		packet.NextHop = client.routes.Route(packet.Destination())
-		client.link.WriteUnbuffered(packet)
+		client.link.WriteAndReturnBuffer(buf)
 	}
 }
 
-func (client *Client) master2tun() {
-	var buf *common.BufferedPacket
+func (client *Client) master2tap() {
+	var buf *common.BufferedFrame
 	var err error
 	for {
-		buf = <-client.link.ReadPacket
+		buf = <-client.link.ReadFrame
 		if client.link.Error != nil {
 			client.routinesQuit <- client.link.Error
 			return
 		}
-		err = client.tun.Write(buf.Packet.Packet)
+		_, err = client.tap.Write(buf.Frame)
 		buf.Return()
 		if err != nil {
 			client.routinesQuit <- err
@@ -98,7 +101,7 @@ func (client *Client) master2tun() {
 }
 
 // Run the client, and block until all routines exit or any error is ecountered.
-// It connects to a master with address masterAddr, proceeds with JoinReq/JoinRsp process, configures the TUN device, and at last, start routines that carry packets back and forth between the TUN device and the master.
+// It connects to a master with address masterAddr, proceeds with JoinReq/JoinRsp process, configures the TAP device, and at last, start routines that carry MAC frames back and forth between the TAP device and the master.
 // masterAddr: should be host:port format where host can be either IP address or hostname/domainName.
 // identity: is an integer that is unique among all clients to identify different clients. Master uses identity to assign IP address to each client.
 func (client *Client) Run(masterAddr string, identity int) (err error) {
@@ -107,8 +110,8 @@ func (client *Client) Run(masterAddr string, identity int) (err error) {
 		return
 	}
 
-	go client.tun2master()
-	go client.master2tun()
+	go client.tap2master()
+	go client.master2tap()
 
 	err = <-client.routinesQuit // first finished or error routine
 	if err != nil {

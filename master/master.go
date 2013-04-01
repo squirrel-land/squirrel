@@ -5,35 +5,49 @@ import (
 	"fmt"
 	"github.com/songgao/squirrel/common"
 	mcommon "github.com/songgao/squirrel/models/common"
+	"github.com/songgao/water/waterutil"
 	"net"
 	"sync"
 )
 
+type client struct {
+	Link *common.Link
+	Addr net.HardwareAddr
+}
+
 type Master struct {
 	addressPool     *addressPool
-	clients         []*common.Link
+	clients         []*client
+	addrReverse     map[string]int
 	mobileNodes     []*mcommon.Position
+	mu              sync.RWMutex // just for addrReverse, since maps are not thread-safe.
 	mobilityManager mcommon.MobilityManager
 	september       mcommon.September
 }
 
 func NewMaster(network *net.IPNet, mobilityManager mcommon.MobilityManager, september mcommon.September) (master *Master) {
-	master = &Master{addressPool: newAddressPool(network), mobilityManager: mobilityManager, september: september}
-	master.clients = make([]*common.Link, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
+	master = &Master{addressPool: newAddressPool(network), addrReverse: make(map[string]int), mobilityManager: mobilityManager, september: september}
+	master.clients = make([]*client, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
 	master.mobileNodes = make([]*mcommon.Position, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
 	master.mobilityManager.Initialize(master.mobileNodes)
 	master.september.Initialize(master.mobileNodes)
 	return
 }
 
-func (master *Master) clientJoin(identity int, link *common.Link) {
-	master.clients[identity] = link
+func (master *Master) clientJoin(identity int, addr net.HardwareAddr, link *common.Link) {
+	master.mu.Lock()
+	defer master.mu.Unlock()
+	master.clients[identity] = &client{Link: link, Addr: addr}
 	master.mobileNodes[identity] = master.mobilityManager.GenerateNewNode()
-	addr, _ := master.addressPool.GetAddress(identity)
-	fmt.Printf("%v joined\n", addr)
+	master.addrReverse[addr.String()] = identity
+	ipAddr, _ := master.addressPool.GetAddress(identity)
+	fmt.Printf("%v joined\n", ipAddr)
 }
 
 func (master *Master) clientLeave(identity int) {
+	master.mu.Lock()
+	defer master.mu.Unlock()
+	delete(master.addrReverse, master.clients[identity].Addr.String())
 	master.clients[identity] = nil
 	master.mobileNodes[identity] = nil
 	addr, _ := master.addressPool.GetAddress(identity)
@@ -64,45 +78,47 @@ func (master *Master) accept(listener net.Listener) (identity int, err error) {
 	if err != nil {
 		return
 	}
-	master.clientJoin(req.Identity, link)
+	master.clientJoin(req.Identity, req.MACAddr, link)
 	link.StartRoutines()
 	return req.Identity, nil
 }
 
-func (master *Master) packetHandler(myIdentity int) {
+func (master *Master) frameHandler(myIdentity int) {
 	var (
-		bufferedPacket *common.BufferedPacket
-		nextHopId      int
-		err            error
-		wg             = new(sync.WaitGroup)
-		underlying     = make([]int, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
+		bufferedFrame *common.BufferedFrame
+		wg            = new(sync.WaitGroup)
+		underlying    = make([]int, master.addressPool.Capacity()+1)
 	)
 
 	for {
-		bufferedPacket = <-master.clients[myIdentity].ReadPacket
-		if master.clients[myIdentity].Error != nil {
+		bufferedFrame = <-master.clients[myIdentity].Link.ReadFrame
+		if master.clients[myIdentity].Link.Error != nil {
 			master.clientLeave(myIdentity)
-			if bufferedPacket != nil {
-				bufferedPacket.Return()
+			if bufferedFrame != nil {
+				bufferedFrame.Return()
 			}
 			return
 		}
-		if master.addressPool.IsBroadcast(bufferedPacket.Packet.NextHop) || bufferedPacket.Packet.NextHop.IsMulticast() {
-			recipients := master.september.SendBroadcast(myIdentity, len(bufferedPacket.Packet.Packet), underlying)
+		dst := waterutil.MACDestination(bufferedFrame.Frame)
+		if waterutil.IsBroadcast(dst) || waterutil.IsIPv4Multicast(dst) {
+			recipients := master.september.SendBroadcast(myIdentity, len(bufferedFrame.Frame), underlying)
 			for _, id := range recipients {
 				if master.clients[id] != nil { // This is mostly not necessary. Added due to not using locks, just in case.
 					wg.Add(1)
-					master.clients[id].WriteWithNotify(bufferedPacket, wg)
+					master.clients[id].Link.WriteWithNotify(bufferedFrame, wg)
 				}
 			}
 			wg.Wait()
-			bufferedPacket.Return()
+			bufferedFrame.Return()
 		} else { // unicast
-			nextHopId, err = master.addressPool.GetIdentity(bufferedPacket.Packet.NextHop)
-			if err == nil && master.clients[nextHopId] != nil && master.september.SendUnicast(myIdentity, nextHopId, len(bufferedPacket.Packet.Packet)) {
-				master.clients[nextHopId].WriteAndReturnBuffer(bufferedPacket)
+			master.mu.RLock() // maps are not thread-safe
+			dstId, ok := master.addrReverse[waterutil.MACDestination(bufferedFrame.Frame).String()]
+			client := master.clients[dstId]
+			master.mu.RUnlock()
+			if ok && master.september.SendUnicast(myIdentity, dstId, len(bufferedFrame.Frame)) {
+				client.Link.WriteAndReturnBuffer(bufferedFrame)
 			} else {
-				bufferedPacket.Return()
+				bufferedFrame.Return()
 			}
 		}
 	}
@@ -118,7 +134,7 @@ func (master *Master) Run(laddr string) (err error) {
 		if err != nil {
 			continue
 		}
-		go master.packetHandler(identity)
+		go master.frameHandler(identity)
 	}
 	return
 }
