@@ -17,6 +17,15 @@ func NewPosition() *Position {
 	return &Position{0, 0, 0, new(sync.RWMutex)}
 }
 
+func NewPositionFromArray(position [3]float64) *Position {
+	return &Position{
+		X:      position[0],
+		Y:      position[1],
+		Height: position[2],
+		Mu:     new(sync.RWMutex),
+	}
+}
+
 // Master uses an implementation of MobilityManager interface to simulate the mobility of nodes.
 type MobilityManager interface {
 

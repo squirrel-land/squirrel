@@ -6,6 +6,7 @@ import (
 
 var MobilityManagers = map[string]func() common.MobilityManager{
 	"StaticUniformPositions": newStaticUniformPositions,
+	"StaticDefinedPositions": newStaticDefinedPositions,
 }
 
 var Septembers = map[string]func() common.September{
