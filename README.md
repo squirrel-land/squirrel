@@ -153,6 +153,8 @@ You may change `Spacing` parameter in the mobility manager to make nodes farther
 - More `September` models
 - Larger scale tests
 - Supporting olsrd, xorp, etc.
+- Multiple interfaces on one client node (to enable multi-path TCP or SCTP)
+- Fully distributed architecture? (no master node)
 
 ## License
 `squirrel` is licensed under GNU GENERAL PUBLIC LICENSE Version 3
