@@ -17,7 +17,7 @@ type masterConfig struct {
 type clientConfig struct {
 	ServerAddress    string
 	Identity         int
-	TunInterfaceName string
+	TapInterfaceName string
 }
 
 func parseMasterConfig(filename string) (config *masterConfig, err error) {

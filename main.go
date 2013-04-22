@@ -59,7 +59,7 @@ func runClient() (err error) {
 	if err != nil {
 		return
 	}
-	client, err := client.NewClient(config.TunInterfaceName)
+	client, err := client.NewClient(config.TapInterfaceName)
 	if err != nil {
 		return
 	}
