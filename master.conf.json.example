@@ -4,7 +4,7 @@
 
     "MobilityManager":              "StaticUniformPositions",
     "MobilityManagerParameters":    {
-        "Spacing": 5000,
+        "Spacing": 50000,
         "Shape": "Linear"
     },
 
