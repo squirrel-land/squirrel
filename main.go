@@ -10,19 +10,19 @@ import (
 
 // Flags
 var (
-	fMaster bool
-	fClient bool
-	fConfig string
+	fMaster     string
+	fServerAddr string
+	fIdentity   int
 )
 
 func init() {
-	flag.BoolVar(&fMaster, "m", false, "Run as master.")
-	flag.BoolVar(&fClient, "c", false, "Run as client.")
-	flag.StringVar(&fConfig, "f", "", "Configuration file.")
+	flag.StringVar(&fMaster, "m", "", "Master mode; Configuration file.")
+	flag.StringVar(&fServerAddr, "c", "", "Run as client; server URI")
+	flag.IntVar(&fIdentity, "i", 0, "Identity if running as a clieng")
 }
 
 func runMaster() (err error) {
-	config, err := parseMasterConfig(fConfig)
+	config, err := parseMasterConfig(fMaster)
 	if err != nil {
 		return
 	}
@@ -55,26 +55,22 @@ func runMaster() (err error) {
 }
 
 func runClient() (err error) {
-	config, err := parseClientConfig(fConfig)
+	client, err := client.NewClient("")
 	if err != nil {
 		return
 	}
-	client, err := client.NewClient(config.TapInterfaceName)
-	if err != nil {
-		return
-	}
-	return client.Run(config.ServerAddress, config.Identity)
+	return client.Run(fServerAddr, fIdentity)
 }
 
 func main() {
 	flag.Parse()
 	switch {
-	case fMaster:
+	case fMaster != "":
 		err := runMaster()
 		if err != nil {
 			fmt.Printf("error: %v\n", err)
 		}
-	case fClient:
+	case fServerAddr != "" && fIdentity != 0:
 		err := runClient()
 		if err != nil {
 			fmt.Printf("error: %v\n", err)
