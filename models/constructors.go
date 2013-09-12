@@ -10,6 +10,7 @@ var MobilityManagers = map[string]func() common.MobilityManager{
 }
 
 var Septembers = map[string]func() common.September{
+	"September0th": newSeptember0th,
 	"September1st": newSeptember1st,
 	"September2nd": newSeptember2nd,
 }

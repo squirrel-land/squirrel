@@ -13,7 +13,7 @@ type september2nd struct {
 
 	nodes    []*common.Position
 	buckets  []*leakyBucket // measured by number of nanoseconds used;
-	dataRate float64        // bit data rates in bit/nanosecond 
+	dataRate float64        // bit data rates in bit/nanosecond
 
 	// MAC layer time in nanoseconds
 	difs    int

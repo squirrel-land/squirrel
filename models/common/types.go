@@ -65,7 +65,7 @@ type September interface {
 
 	// Used when a broadcast packet as large as size(in bytes) is sent from source(identity).
 	// Returns a slice of non-nil identities of nodes that should receive this packet. For effiency, the returned slice is a sub-slice of underlying.
-	// underlying is a slice that garantees length large enough to hold all nodes. It does nothing more than providing a dedicated space for returned identities from this method. It's intended for reducing workload of GC. Thus, this method should modify elements in underlying and the returned slice should be a sub-slice of underlying. 
+	// underlying is a slice that garantees length large enough to hold all nodes. It does nothing more than providing a dedicated space for returned identities from this method. It's intended for reducing workload of GC. Thus, this method should modify elements in underlying and the returned slice should be a sub-slice of underlying.
 	// Any modification to models (interference, etc.) should be done within this function.
 	SendBroadcast(source int, size int, underlying []int) []int
 }
