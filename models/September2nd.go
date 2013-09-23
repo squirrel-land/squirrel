@@ -11,9 +11,9 @@ type september2nd struct {
 	noDeliveryDistance float64
 	interferenceRange  float64
 
-	nodes    []*common.Position
-	buckets  []*leakyBucket // measured by number of nanoseconds used;
-	dataRate float64        // bit data rates in bit/nanosecond
+	positionManager *common.PositionManager
+	buckets         []*leakyBucket // measured by number of nanoseconds used;
+	dataRate        float64        // bit data rates in bit/nanosecond
 
 	// MAC layer time in nanoseconds
 	difs    int
@@ -65,9 +65,9 @@ func (september *september2nd) Configure(config map[string]interface{}) (err err
 	return nil
 }
 
-func (september *september2nd) Initialize(nodes []*common.Position) {
-	september.nodes = nodes
-	september.buckets = make([]*leakyBucket, len(nodes), len(nodes))
+func (september *september2nd) Initialize(positionManager *common.PositionManager) {
+	september.positionManager = positionManager
+	september.buckets = make([]*leakyBucket, positionManager.Capacity())
 	for it := range september.buckets {
 		september.buckets[it] = &leakyBucket{
 			BucketSize:        int32(1000 * 1000 * 1000), // 1 second
@@ -98,15 +98,12 @@ func (september *september2nd) ackIntererence() int {
 
 func (september *september2nd) deliverRate(dest int, dist float64) float64 {
 	usage := september.buckets[dest].Usage()
-	t_mean := (1-usage)*.1 + .9 // usage transformed from [0, 1] to [.93, 1]
-	//r := rand.NormFloat64() * 0.03 + t_mean // Normal dist ~N(t_mean, 0.03^2)
-	return t_mean * (1 - math.Pow(dist/september.noDeliveryDistance, 3))
+	p_rate := (1-usage)*.1 + .9 // usage transformed from [0, 1] to [.9, 1]
+	return p_rate * (1 - math.Pow(dist/september.noDeliveryDistance, 3))
 }
 
 func (september *september2nd) SendUnicast(source int, destination int, size int) bool {
-	p1 := september.nodes[source]
-	p2 := september.nodes[destination]
-	if p1 == nil || p2 == nil {
+	if !(september.positionManager.IsEnabled(source) && september.positionManager.IsEnabled(destination)) {
 		return false
 	}
 
@@ -115,24 +112,16 @@ func (september *september2nd) SendUnicast(source int, destination int, size int
 		return false
 	}
 
-	p1.Mu.RLock()
-	p2.Mu.RLock()
-	defer p1.Mu.RUnlock()
-	defer p2.Mu.RUnlock()
-
-	dist := distance(p1, p2)
+	dist := september.positionManager.Distance(source, destination)
 
 	// Since the packet is out in the air, interference should be put on neighbor nodes
-	for i := 1; i < len(september.nodes); i++ {
-		n := september.nodes[i]
-		if i != source && i != destination && n != nil {
-			n.Mu.RLock()
-			defer n.Mu.RUnlock()
-			if rand.Float64() < 1-math.Pow(distance(p1, n)/september.interferenceRange, 6) {
-				september.buckets[i].In(september.nanosecByPacket(size))
-			} else if rand.Float64() < 1-math.Pow(distance(p2, n)/september.interferenceRange, 6) {
-				september.buckets[i].In(september.ackIntererence())
-			}
+	for _, i := range september.positionManager.Enabled() {
+		d1 := september.positionManager.Distance(source, i)
+		d2 := september.positionManager.Distance(destination, i)
+		if rand.Float64() < 1-math.Pow(d1/september.interferenceRange, 6) {
+			september.buckets[i].In(september.nanosecByPacket(size))
+		} else if rand.Float64() < 1-math.Pow(d2/september.interferenceRange, 6) {
+			september.buckets[i].In(september.ackIntererence())
 		}
 	}
 
@@ -151,8 +140,7 @@ func (september *september2nd) SendUnicast(source int, destination int, size int
 }
 
 func (september *september2nd) SendBroadcast(source int, size int, underlying []int) []int {
-	p1 := september.nodes[source]
-	if p1 == nil {
+	if !september.positionManager.IsEnabled(source) {
 		return underlying[:0]
 	}
 	// Go through source bucket
@@ -160,28 +148,19 @@ func (september *september2nd) SendBroadcast(source int, size int, underlying []
 		return underlying[:0]
 	}
 
-	p1.Mu.RLock()
-	defer p1.Mu.RUnlock()
-
 	count := 0
-	for i := 1; i < len(september.nodes); i++ {
-		p2 := september.nodes[i]
-		if p2 == nil {
-			continue
-		}
-
-		p2.Mu.RLock()
-		defer p2.Mu.RUnlock()
-
-		dist := distance(p1, p2)
+	for _, i := range september.positionManager.Enabled() {
+		dist := september.positionManager.Distance(source, i)
 		if dist < september.interferenceRange {
 			if !september.buckets[i].In(september.nanosecByPacket(size)) {
-				// Go through destination bucket. If rejected by the bucket, the broadcasted packet should not be delivered to this node
+				// Go through destination bucket. If rejected by the bucket, the
+				// broadcasted packet should not be delivered to this node
 				continue
 			}
 		}
 
-		// The packet takes the adventure in the air (fading, etc.). There's still a possibility the packet is not delivered to this node
+		// The packet takes the adventure in the air (fading, etc.). There's still
+		// a possibility the packet is not delivered to this node
 		if rand.Float64() > september.deliverRate(i, dist) {
 			continue
 		}

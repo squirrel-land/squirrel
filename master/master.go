@@ -19,7 +19,7 @@ type Master struct {
 	addressPool     *addressPool
 	clients         []*client
 	addrReverse     map[string]int
-	mobileNodes     []*mcommon.Position
+	positionManager *mcommon.PositionManager
 	mu              sync.RWMutex // just for addrReverse, since maps are not thread-safe.
 	mobilityManager mcommon.MobilityManager
 	september       mcommon.September
@@ -28,9 +28,9 @@ type Master struct {
 func NewMaster(network *net.IPNet, mobilityManager mcommon.MobilityManager, september mcommon.September) (master *Master) {
 	master = &Master{addressPool: newAddressPool(network), addrReverse: make(map[string]int), mobilityManager: mobilityManager, september: september}
 	master.clients = make([]*client, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
-	master.mobileNodes = make([]*mcommon.Position, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
-	master.mobilityManager.Initialize(master.mobileNodes)
-	master.september.Initialize(master.mobileNodes)
+	master.positionManager = mcommon.NewPositionManager(master.addressPool.Capacity() + 1)
+	master.mobilityManager.Initialize(master.positionManager)
+	master.september.Initialize(master.positionManager)
 	return
 }
 
@@ -38,7 +38,7 @@ func (master *Master) clientJoin(identity int, addr net.HardwareAddr, link *comm
 	master.mu.Lock()
 	defer master.mu.Unlock()
 	master.clients[identity] = &client{Link: link, Addr: addr}
-	master.mobileNodes[identity] = master.mobilityManager.GenerateNewNode()
+	master.positionManager.Enable(identity)
 	master.addrReverse[addr.String()] = identity
 	ipAddr, _ := master.addressPool.GetAddress(identity)
 	fmt.Printf("%v joined\n", ipAddr)
@@ -49,7 +49,7 @@ func (master *Master) clientLeave(identity int) {
 	defer master.mu.Unlock()
 	delete(master.addrReverse, master.clients[identity].Addr.String())
 	master.clients[identity] = nil
-	master.mobileNodes[identity] = nil
+	master.positionManager.Disable(identity)
 	addr, _ := master.addressPool.GetAddress(identity)
 	fmt.Printf("%v left\n", addr)
 }

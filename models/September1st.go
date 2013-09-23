@@ -7,7 +7,7 @@ import (
 )
 
 type september1st struct {
-	nodes              []*common.Position
+	positionManager    *common.PositionManager
 	noDeliveryDistance float64
 }
 
@@ -35,8 +35,8 @@ func (september *september1st) Configure(config map[string]interface{}) (err err
 	return nil
 }
 
-func (september *september1st) Initialize(nodes []*common.Position) {
-	september.nodes = nodes
+func (september *september1st) Initialize(positionManager *common.PositionManager) {
+	september.positionManager = positionManager
 }
 
 func (september *september1st) SendUnicast(source int, destination int, size int) bool {
@@ -45,7 +45,7 @@ func (september *september1st) SendUnicast(source int, destination int, size int
 
 func (september *september1st) SendBroadcast(source int, size int, underlying []int) []int {
 	count := 0
-	for i := 1; i < len(september.nodes); i++ {
+	for _, i := range september.positionManager.Enabled() {
 		if i != source && september.isToBeDelivered(source, i) {
 			underlying[count] = i
 			count++
@@ -55,22 +55,13 @@ func (september *september1st) SendBroadcast(source int, size int, underlying []
 }
 
 func (september *september1st) isToBeDelivered(id1 int, id2 int) bool {
-	if september.nodes[id1] == nil || september.nodes[id2] == nil {
+	if september.positionManager.IsEnabled(id1) && september.positionManager.IsEnabled(id2) {
+		dist := september.positionManager.Distance(id1, id2)
+		if dist < september.noDeliveryDistance*0.8 {
+			return true
+		}
+		return rand.Float64() > math.Pow(dist/september.noDeliveryDistance, 4)
+	} else {
 		return false
 	}
-	september.nodes[id1].Mu.RLock()
-	september.nodes[id2].Mu.RLock()
-	defer september.nodes[id1].Mu.RUnlock()
-	defer september.nodes[id2].Mu.RUnlock()
-
-	p1 := september.nodes[id1]
-	p2 := september.nodes[id2]
-	if p1 == nil || p2 == nil {
-		return false
-	}
-	dist := distance(p1, p2)
-	if dist < september.noDeliveryDistance*0.8 {
-		return true
-	}
-	return rand.Float64() > math.Pow(dist/september.noDeliveryDistance, 4)
 }

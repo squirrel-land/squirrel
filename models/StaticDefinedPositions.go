@@ -5,12 +5,11 @@ import (
 )
 
 type staticDefinedPositions struct {
-	nodes     []*common.Position
-	positions chan *common.Position
+	positions [][3]float64
 }
 
 func newStaticDefinedPositions() common.MobilityManager {
-	return &staticDefinedPositions{positions: make(chan *common.Position)}
+	return &staticDefinedPositions{}
 }
 
 func (mobilityManager *staticDefinedPositions) ParametersHelp() string {
@@ -36,23 +35,22 @@ func (mobilityManager *staticDefinedPositions) Configure(config map[string]inter
 			pos[i][j] = num
 		}
 	}
-	go func() {
-		for i := range positions {
-			mobilityManager.positions <- common.NewPositionFromArray(pos[i])
-		}
-		mobilityManager.positions <- nil
-	}()
+	mobilityManager.positions = pos
 	return nil
 }
 
-func (mobilityManager *staticDefinedPositions) GenerateNewNode() (newPosition *common.Position) {
-	pos := <-mobilityManager.positions
-	if pos == nil {
-		mobilityManager.positions <- nil
-	}
-	return pos
-}
-
-func (mobilityManager *staticDefinedPositions) Initialize(nodes []*common.Position) {
-	mobilityManager.nodes = nodes
+func (mobilityManager *staticDefinedPositions) Initialize(positionManager *common.PositionManager) {
+	ch := make(chan []int)
+	positionManager.RegisterEnabledChanged(ch)
+	go func() {
+		for {
+			enabled := <-ch
+			for i, index := range enabled {
+				if i < len(mobilityManager.positions) {
+					p := mobilityManager.positions[i]
+					positionManager.Set(index, p[0], p[1], p[2])
+				}
+			}
+		}
+	}()
 }

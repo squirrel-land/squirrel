@@ -5,8 +5,7 @@ import (
 )
 
 type september0th struct {
-	nodes              []*common.Position
-	noDeliveryDistance float64
+	positionManager *common.PositionManager
 }
 
 func newSeptember0th() common.September {
@@ -21,8 +20,8 @@ func (september *september0th) Configure(config map[string]interface{}) (err err
 	return nil
 }
 
-func (september *september0th) Initialize(nodes []*common.Position) {
-	september.nodes = nodes
+func (september *september0th) Initialize(positionManager *common.PositionManager) {
+	september.positionManager = positionManager
 }
 
 func (september *september0th) SendUnicast(source int, destination int, size int) bool {
@@ -31,8 +30,8 @@ func (september *september0th) SendUnicast(source int, destination int, size int
 
 func (september *september0th) SendBroadcast(source int, size int, underlying []int) []int {
 	count := 0
-	for i := 1; i < len(september.nodes); i++ {
-		if i != source && september.isToBeDelivered(source, i) {
+	for _, i := range september.positionManager.Enabled() {
+		if i != source {
 			underlying[count] = i
 			count++
 		}
@@ -41,9 +40,9 @@ func (september *september0th) SendBroadcast(source int, size int, underlying []
 }
 
 func (september *september0th) isToBeDelivered(id1 int, id2 int) bool {
-	if september.nodes[id1] == nil || september.nodes[id2] == nil {
-		return false
-	} else {
+	if september.positionManager.IsEnabled(id1) && september.positionManager.IsEnabled(id2) {
 		return true
+	} else {
+		return false
 	}
 }
