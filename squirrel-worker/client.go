@@ -19,6 +19,9 @@ type Client struct {
 // Create a new client along with a TAP network interface whose name is tapName
 func NewClient(tapName string) (client *Client, err error) {
 	tap, err := water.NewTAP(tapName)
+	if err != nil {
+		return nil, err
+	}
 	client = &Client{
 		link:         nil,
 		tap:          tap,

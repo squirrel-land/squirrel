@@ -27,9 +27,11 @@ func main() {
 	client, err := NewClient(fTapName)
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
+		return
 	}
 	err = client.Run(fServerAddr, fIdentity)
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
+		return
 	}
 }
