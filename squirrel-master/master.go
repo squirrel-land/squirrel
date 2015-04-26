@@ -6,8 +6,8 @@ import (
 	"net"
 	"sync"
 
-	mcommon "github.com/squirrel-land/models/common"
-	"github.com/squirrel-land/squirrels/common"
+	"github.com/squirrel-land/squirrel"
+	"github.com/squirrel-land/squirrel/common"
 	"github.com/squirrel-land/water/waterutil"
 )
 
@@ -20,16 +20,16 @@ type Master struct {
 	addressPool     *addressPool
 	clients         []*client
 	addrReverse     map[string]int
-	positionManager *mcommon.PositionManager
+	positionManager squirrel.PositionManager
 	mu              sync.RWMutex // just for addrReverse, since maps are not thread-safe.
-	mobilityManager mcommon.MobilityManager
-	september       mcommon.September
+	mobilityManager squirrel.MobilityManager
+	september       squirrel.September
 }
 
-func NewMaster(network *net.IPNet, mobilityManager mcommon.MobilityManager, september mcommon.September) (master *Master) {
+func NewMaster(network *net.IPNet, mobilityManager squirrel.MobilityManager, september squirrel.September) (master *Master) {
 	master = &Master{addressPool: newAddressPool(network), addrReverse: make(map[string]int), mobilityManager: mobilityManager, september: september}
 	master.clients = make([]*client, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
-	master.positionManager = mcommon.NewPositionManager(master.addressPool.Capacity() + 1)
+	master.positionManager = NewPositionManager(master.addressPool.Capacity() + 1)
 	master.mobilityManager.Initialize(master.positionManager)
 	master.september.Initialize(master.positionManager)
 	return

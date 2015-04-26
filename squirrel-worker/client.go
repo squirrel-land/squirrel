@@ -6,7 +6,7 @@ import (
 	"net"
 	"os/exec"
 
-	"github.com/squirrel-land/squirrels/common"
+	"github.com/squirrel-land/squirrel/common"
 	"github.com/squirrel-land/water"
 )
 
