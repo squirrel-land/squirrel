@@ -14,7 +14,7 @@ var (
 
 func init() {
 	flag.StringVar(&fServerAddr, "m", "", "master URI")
-	flag.IntVar(&fIdentity, "i", 0, "Identity if running as a clieng")
+	flag.IntVar(&fIdentity, "i", 0, "Identity if running as a client")
 	flag.StringVar(&fTapName, "t", "", "TAP interface name; leave as blank for default")
 }
 
