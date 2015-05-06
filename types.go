@@ -1,5 +1,9 @@
 package squirrel
 
+import (
+	"github.com/coreos/go-etcd/etcd"
+)
+
 // MobilityManager controls locations and defines model of mobility of each
 // nodes. Master uses an implementation of MobilityManager interface to
 // simulate the mobility of nodes.
@@ -9,7 +13,7 @@ type MobilityManager interface {
 	ParametersHelp() string
 
 	// Configure configures the mobility manager with a set of parameters.
-	Configure(map[string]interface{}) error
+	Configure(*etcd.Node) error
 
 	// Initialize sets the PositionManager.
 	Initialize(positionManager PositionManager)
@@ -28,7 +32,7 @@ type September interface {
 	ParametersHelp() string
 
 	// Configure configures the mobility manager with a set of parameters.
-	Configure(map[string]interface{}) error
+	Configure(*etcd.Node) error
 
 	// Initialize sets the PositionManager.
 	Initialize(positionManager PositionManager)

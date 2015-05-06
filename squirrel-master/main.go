@@ -1,61 +1,160 @@
 package main
 
 import (
-	"flag"
+	"errors"
 	"fmt"
+	"github.com/coreos/go-etcd/etcd"
+	"github.com/squirrel-land/squirrel/common"
 	"net"
+	"os"
 )
 
-// Flags
-var (
-	fConfig string
-)
-
-func init() {
-	flag.StringVar(&fConfig, "c", "", "path to configuration file.")
+type config struct {
+	uri                   string
+	emulatedSubnet        string
+	mobilityManager       string
+	mobilityManagerConfig *etcd.Node
+	september             string
+	septemberConfig       *etcd.Node
 }
 
-func runMaster() (err error) {
-	config, err := parseMasterConfig(fConfig)
+func getConfig() (conf config, err error) {
+	endpoint := os.Getenv("SQUIRREL_ENDPOINT")
+	if endpoint == "" {
+		endpoint = "http://127.0.0.1:4001"
+	}
+	client := etcd.NewClient([]string{endpoint})
+
+	conf.uri, err = common.GetEtcdValue(client, "/squirrel/master_uri")
 	if err != nil {
 		return
 	}
-	_, network, err := net.ParseCIDR(config.Network)
+
+	conf.emulatedSubnet, err = common.GetEtcdValue(client, "/squirrel/master/emulated_subnet")
 	if err != nil {
 		return
 	}
-	mobilityManager, err := newMobilityManager(config.MobilityManager)
+
+	conf.mobilityManager, err = common.GetEtcdValue(client, "/squirrel/master/mobility_manager")
 	if err != nil {
 		return
 	}
-	err = mobilityManager.Configure(config.MobilityManagerParameters)
+
+	mobilityManagerConfigPath, err := common.GetEtcdValue(client, "/squirrel/master/mobility_manager_config_path")
+	if err != nil {
+		if common.IsEtcdNotFoundError(err) {
+			err = nil
+		} else {
+			return
+		}
+	} else {
+		resp, er := client.Get(mobilityManagerConfigPath, false, true)
+		if er != nil {
+			err = er
+			return
+		}
+		if !resp.Node.Dir {
+			err = errors.New("mobilityManagerConfig is not a Dir node")
+			return
+		}
+		conf.mobilityManagerConfig = resp.Node
+	}
+
+	conf.september, err = common.GetEtcdValue(client, "/squirrel/master/september")
+	if err != nil {
+		return
+	}
+
+	septemberConfigPath, err := common.GetEtcdValue(client, "/squirrel/master/september_config_path")
+	if err != nil {
+		if common.IsEtcdNotFoundError(err) {
+			err = nil
+		} else {
+			return
+		}
+	} else {
+		resp, er := client.Get(septemberConfigPath, false, true)
+		if er != nil {
+			err = er
+			return
+		}
+		if !resp.Node.Dir {
+			err = errors.New("septemberConfig is not a Dir node")
+			return
+		}
+		conf.septemberConfig = resp.Node
+	}
+
+	return
+}
+
+func runMaster(conf config) (err error) {
+	_, network, err := net.ParseCIDR(conf.emulatedSubnet)
+	if err != nil {
+		return
+	}
+
+	mobilityManager, err := newMobilityManager(conf.mobilityManager)
+	if err != nil {
+		return
+	}
+	september, err := newSeptember(conf.september)
+	if err != nil {
+		return
+	}
+
+	err = mobilityManager.Configure(conf.mobilityManagerConfig)
 	if err != nil {
 		fmt.Println("Creating MobilityManager failed. Following message might help:\n")
 		fmt.Println(mobilityManager.ParametersHelp())
 		return
 	}
-	september, err := newSeptember(config.September)
-	if err != nil {
-		return
-	}
-	err = september.Configure(config.SeptemberParameters)
+	err = september.Configure(conf.septemberConfig)
 	if err != nil {
 		fmt.Println("Creating September failed. Following message might help:\n")
 		fmt.Println(september.ParametersHelp())
 		return
 	}
+
 	master := NewMaster(network, mobilityManager, september)
-	return master.Run(config.ListenAddress)
+	return master.Run(conf.uri)
+}
+
+func printHelp() {
+	fmt.Println()
+	fmt.Printf("Usage: %s\n", os.Args[0])
+	fmt.Println()
+	fmt.Println("Environment Variables:")
+	fmt.Println("    SQUIRREL_ENDPOINT  : etcd endpoint UIR. [Optional]")
+	fmt.Println("                             Default: http://127.0.0.1:4001")
+	fmt.Println("Etcd Configuration Entries:")
+	fmt.Println("    /squirrel/master_uri                          [Required]")
+	fmt.Println("        URI of the squirrel-master that squirrel-workers connect to. ")
+	fmt.Println("    /squirrel/master/emulated_subnet              [Required]")
+	fmt.Println("        Network in CIDR notation for emulated wireless network.")
+	fmt.Println("    /squirrel/master/mobility_manager             [Required]")
+	fmt.Println("        Name of the Mobility Manager.")
+	fmt.Println("    /squirrel/master/mobility_manager_config_path [Optional]")
+	fmt.Println("        Configuration node (a Dir) of the Mobility Manager.")
+	fmt.Println("    /squirrel/master/september                    [Required]")
+	fmt.Println("        Name of the September.")
+	fmt.Println("    /squirrel/master/september_config_path        [Optional]")
+	fmt.Println("        Configuration node (a Dir) of the September.")
 }
 
 func main() {
-	flag.Parse()
-	if fConfig == "" {
-		flag.PrintDefaults()
-	} else {
-		err := runMaster()
-		if err != nil {
-			fmt.Printf("error: %v\n", err)
-		}
+	conf, err := getConfig()
+	if err != nil {
+		fmt.Println(err)
+		printHelp()
+		os.Exit(1)
 	}
+
+	err = runMaster(conf)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	return
 }
