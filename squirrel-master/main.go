@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/coreos/go-etcd/etcd"
+	"github.com/squirrel-land/squirrel"
 	"github.com/squirrel-land/squirrel/common"
 	"net"
 	"os"
@@ -40,7 +41,8 @@ func getConfig() (conf config, err error) {
 		return
 	}
 
-	mobilityManagerConfigPath, err := common.GetEtcdValue(client, "/squirrel/master/mobility_manager_config_path")
+	var mobilityManagerConfigPath string
+	mobilityManagerConfigPath, err = common.GetEtcdValue(client, "/squirrel/master/mobility_manager_config_path")
 	if err != nil {
 		if common.IsEtcdNotFoundError(err) {
 			err = nil
@@ -48,9 +50,9 @@ func getConfig() (conf config, err error) {
 			return
 		}
 	} else {
-		resp, er := client.Get(mobilityManagerConfigPath, false, true)
-		if er != nil {
-			err = er
+		var resp *etcd.Response
+		resp, err = client.Get(mobilityManagerConfigPath, false, true)
+		if err != nil {
 			return
 		}
 		if !resp.Node.Dir {
@@ -65,7 +67,8 @@ func getConfig() (conf config, err error) {
 		return
 	}
 
-	septemberConfigPath, err := common.GetEtcdValue(client, "/squirrel/master/september_config_path")
+	var septemberConfigPath string
+	septemberConfigPath, err = common.GetEtcdValue(client, "/squirrel/master/september_config_path")
 	if err != nil {
 		if common.IsEtcdNotFoundError(err) {
 			err = nil
@@ -73,9 +76,9 @@ func getConfig() (conf config, err error) {
 			return
 		}
 	} else {
-		resp, er := client.Get(septemberConfigPath, false, true)
-		if er != nil {
-			err = er
+		var resp *etcd.Response
+		resp, err = client.Get(septemberConfigPath, false, true)
+		if err != nil {
 			return
 		}
 		if !resp.Node.Dir {
@@ -89,16 +92,19 @@ func getConfig() (conf config, err error) {
 }
 
 func runMaster(conf config) (err error) {
-	_, network, err := net.ParseCIDR(conf.emulatedSubnet)
+	var network *net.IPNet
+	_, network, err = net.ParseCIDR(conf.emulatedSubnet)
 	if err != nil {
 		return
 	}
 
-	mobilityManager, err := newMobilityManager(conf.mobilityManager)
+	var mobilityManager squirrel.MobilityManager
+	mobilityManager, err = newMobilityManager(conf.mobilityManager)
 	if err != nil {
 		return
 	}
-	september, err := newSeptember(conf.september)
+	var september squirrel.September
+	september, err = newSeptember(conf.september)
 	if err != nil {
 		return
 	}

@@ -6,7 +6,8 @@ import (
 )
 
 func GetEtcdValue(client *etcd.Client, key string) (value string, err error) {
-	resp, err := client.Get(key, false, false)
+	var resp *etcd.Response
+	resp, err = client.Get(key, false, false)
 	if err != nil {
 		return
 	}

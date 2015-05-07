@@ -18,7 +18,8 @@ type Client struct {
 
 // Create a new client along with a TAP network interface whose name is tapName
 func NewClient(tapName string) (client *Client, err error) {
-	tap, err := water.NewTAP(tapName)
+	var tap *water.Interface
+	tap, err = water.NewTAP(tapName)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +43,8 @@ func (client *Client) configureTap(joinRsp *common.JoinRsp) (err error) {
 }
 
 func (client *Client) connect(masterAddr string, identity int) (err error) {
-	connection, err := net.Dial("tcp", masterAddr)
+	var connection net.Conn
+	connection, err = net.Dial("tcp", masterAddr)
 	if err != nil {
 		return
 	}
@@ -54,7 +56,8 @@ func (client *Client) connect(masterAddr string, identity int) (err error) {
 	if err != nil {
 		return
 	}
-	rsp, err := client.link.GetJoinRsp()
+	var rsp *common.JoinRsp
+	rsp, err = client.link.GetJoinRsp()
 	if err != nil {
 		return
 	}

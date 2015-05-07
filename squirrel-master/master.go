@@ -56,13 +56,15 @@ func (master *Master) clientLeave(identity int) {
 }
 
 func (master *Master) accept(listener net.Listener) (identity int, err error) {
-	connection, err := listener.Accept()
+	var connection net.Conn
+	connection, err = listener.Accept()
 	if err != nil {
 		return
 	}
 	link := common.NewLink(connection)
 
-	req, err := link.GetJoinReq()
+	var req *common.JoinReq
+	req, err = link.GetJoinReq()
 	if err != nil {
 		return
 	}
@@ -71,7 +73,8 @@ func (master *Master) accept(listener net.Listener) (identity int, err error) {
 		err = errors.New("Duplicate identity")
 		return
 	}
-	addr, err := master.addressPool.GetAddress(req.Identity)
+	var addr net.IP
+	addr, err = master.addressPool.GetAddress(req.Identity)
 	if err != nil {
 		return
 	}
@@ -126,12 +129,17 @@ func (master *Master) frameHandler(myIdentity int) {
 }
 
 func (master *Master) Run(laddr string) (err error) {
-	listener, err := net.Listen("tcp", laddr)
+	var (
+		listener net.Listener
+		identity int
+	)
+
+	listener, err = net.Listen("tcp", laddr)
 	if err != nil {
 		return
 	}
 	for {
-		identity, err := master.accept(listener)
+		identity, err = master.accept(listener)
 		if err != nil {
 			continue
 		}
