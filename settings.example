@@ -1,0 +1,16 @@
+#!/bin/bash
+
+export ETCDCTL_PEERS=http://10.0.3.1:4001
+
+set() {
+  echo -n "$1 -> "
+  etcdctl set $1 $2
+}
+
+set /squirrel/master_uri 10.0.3.100:1234
+set /squirrel/master/emulated_subnet 10.0.4.0/24
+set /squirrel/master/mobility_manager StaticUniformPositions
+set /squirrel/master/mobility_manager_config_path /squirrel/master/StaticUniformPositions.1
+set /squirrel/master/StaticUniformPositions.1/spacing 200
+set /squirrel/master/StaticUniformPositions.1/shape Linear
+set /squirrel/master/september September0th

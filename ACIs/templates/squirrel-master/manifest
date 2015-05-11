@@ -1,0 +1,16 @@
+{
+  "acKind": "ImageManifest",
+  "acVersion": "0.5.1",
+  "name": "squirrel-master",
+  "labels": [
+    {"name": "os", "value": "linux"},
+    {"name": "arch", "value": "amd64"}
+  ],
+  "app": {
+    "exec": [
+      "/bin/busybox", "sh"
+    ],
+    "user": "0",
+    "group": "0"
+  }
+}
