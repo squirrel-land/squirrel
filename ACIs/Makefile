@@ -19,3 +19,4 @@ clean :
 	CGO_ENABLED=0 GOOS=linux go build -o ./$*.layout/rootfs/bin/$* -a -installsuffix cgo ../$*
 	cp /bin/busybox ./$*.layout/rootfs/bin/busybox
 	cp /bin/busybox ./$*.layout/rootfs/bin/ip
+	cp /bin/busybox ./$*.layout/rootfs/bin/sh

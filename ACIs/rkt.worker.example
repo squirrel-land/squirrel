@@ -1,0 +1,1 @@
+sudo rkt run -private-net -volume=dev-net,kind=host,source=/dev/net squirrel-worker.aci

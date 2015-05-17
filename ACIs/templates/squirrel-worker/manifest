@@ -8,7 +8,7 @@
   ],
   "app": {
     "exec": [
-      "/bin/busybox", "sh"
+      "/bin/busybox", "telnetd", "-F", "-l", "/bin/sh"
     ],
     "user": "0",
     "group": "0",
