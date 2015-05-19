@@ -3,11 +3,12 @@ package main
 import (
 	"errors"
 	"fmt"
+	"net"
+	"os"
+
 	"github.com/coreos/go-etcd/etcd"
 	"github.com/squirrel-land/squirrel"
 	"github.com/squirrel-land/squirrel/common"
-	"net"
-	"os"
 )
 
 type config struct {
@@ -26,7 +27,20 @@ func getConfig() (conf config, err error) {
 	}
 	client := etcd.NewClient([]string{endpoint})
 
-	conf.uri, err = common.GetEtcdValue(client, "/squirrel/master_uri")
+	var ifce string
+	ifce, err = common.GetEtcdValue(client, "/squirrel/master_ifce")
+	if err != nil {
+		return
+	}
+
+	var addr net.IP
+	addr, err = getAddr(ifce)
+	if err != nil {
+		return
+	}
+	conf.uri = addr.String() + ":1234"
+
+	_, err = client.Set("/squirrel/master_uri", conf.uri, 0)
 	if err != nil {
 		return
 	}
@@ -89,6 +103,37 @@ func getConfig() (conf config, err error) {
 	}
 
 	return
+}
+
+func getAddr(interfaceName string) (net.IP, error) {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+	for _, ifce := range interfaces {
+		if ifce.Name == interfaceName {
+			addrs, err := ifce.Addrs()
+			if err != nil {
+				return nil, err
+			}
+			var ipAddrs []net.IP
+			for _, addr := range addrs {
+				ipNet, ok := addr.(*net.IPNet)
+				if ok {
+					ip4 := ipNet.IP.To4()
+					if ip4 != nil {
+						ipAddrs = append(ipAddrs, ip4)
+					}
+				}
+			}
+
+			if len(ipAddrs) != 1 {
+				return nil, fmt.Errorf("Configured inteface (%s) has wrong number of IP addresses. Expected %d, got %d", ifce.Name, 1, len(ipAddrs))
+			}
+			return ipAddrs[0], nil
+		}
+	}
+	return nil, fmt.Errorf("Configured interface (%s) is not found", interfaceName)
 }
 
 func runMaster(conf config) (err error) {

@@ -7,7 +7,7 @@ set() {
   etcdctl set $1 $2
 }
 
-set /squirrel/master_uri 10.0.3.100:1234
+set /squirrel/master_ifce eth0
 set /squirrel/master/emulated_subnet 10.0.4.0/24
 set /squirrel/master/mobility_manager StaticUniformPositions
 set /squirrel/master/mobility_manager_config_path /squirrel/master/StaticUniformPositions.1

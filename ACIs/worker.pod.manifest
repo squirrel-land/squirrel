@@ -1,0 +1,49 @@
+{
+    "acVersion": "0.5.1",
+    "acKind": "PodManifest",
+    "apps": [
+      {
+        "name": "squirrel-worker",
+        "image": {
+          "name": "squirrel-worker",
+          "id": "sha512-723801f34215f5e772ce824c6658fdbcf08f72361028d65b83d46fdf62c22bd1"
+        },
+        "app": {
+          "exec": [
+            "/bin/busybox", "telnetd", "-F", "-l", "/bin/sh"
+          ],
+          "group": "0",
+          "user": "0",
+          "mountPoints": [
+            {
+              "name": "dev-net",
+              "path": "/dev/net"
+            }
+          ],
+          "environment": [
+            {
+              "name": "SQUIRREL_ENDPOINT",
+              "value": "http://10.0.3.1:4001"
+            }
+          ]
+        }
+      }
+    ],
+    "volumes": [
+        {
+            "name": "dev-net",
+            "kind": "host",
+            "source": "/dev/net"
+        }
+    ],
+    "isolators": [
+        {
+            "name": "os/linux/capabilities-retain-set",
+            "value": {
+              "set": [
+                "CAP_NET_ADMIN"
+              ]
+            }
+        }
+    ]
+}
