@@ -2,25 +2,18 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/coreos/go-etcd/etcd"
 	"github.com/squirrel-land/squirrel/common"
-	"os"
-	"strconv"
 )
 
 type config struct {
 	masterURI string
-	workerID  int
 	tapName   string
 }
 
 func getConfig() (conf config, err error) {
-	conf.workerID, err = strconv.Atoi(os.Getenv("SQUIRREL_WORKER_ID"))
-	if err != nil {
-		err = fmt.Errorf("Parsing SQUIRREL_WORKER_ID error: %v", err)
-		return
-	}
-
 	endpoint := os.Getenv("SQUIRREL_ENDPOINT")
 	if endpoint == "" {
 		endpoint = "http://127.0.0.1:4001"
@@ -52,7 +45,6 @@ func printHelp() {
 	fmt.Println("Environment Variables:")
 	fmt.Println("    SQUIRREL_ENDPOINT  : etcd endpoint UIR. [Optional]")
 	fmt.Println("                             Default: http://127.0.0.1:4001")
-	fmt.Println("    SQUIRREL_WORKER_ID : ID of the workder. [Required]")
 	fmt.Println()
 	fmt.Println("Etcd Configuration Entries:")
 	fmt.Println("    /squirrel/master_uri      : URI of the squirrel-master. [Required]")
@@ -73,7 +65,7 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	err = client.Run(conf.masterURI, conf.workerID)
+	err = client.Run(conf.masterURI)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

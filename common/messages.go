@@ -19,15 +19,14 @@ type MessageType struct {
 
 // sent from client to master, representing request to join
 type JoinReq struct {
-	Identity int
-	MACAddr  net.HardwareAddr
+	MACAddr net.HardwareAddr
 }
 
 // sent from master back to client, indicating assigned IP address and Mask
 type JoinRsp struct {
 	Address net.IP
 	Mask    net.IPMask
-	Success bool
+	Error   error
 }
 
 // represent a MAC frame

@@ -22,6 +22,7 @@ type Master struct {
 	addrReverse     map[string]int
 	positionManager squirrel.PositionManager
 	mu              sync.RWMutex // just for addrReverse, since maps are not thread-safe.
+
 	mobilityManager squirrel.MobilityManager
 	september       squirrel.September
 }
@@ -68,23 +69,30 @@ func (master *Master) accept(listener net.Listener) (identity int, err error) {
 	if err != nil {
 		return
 	}
-	if master.clients[req.Identity] != nil {
-		link.SendJoinRsp(&common.JoinRsp{Success: false})
-		err = errors.New("Duplicate identity")
+
+	for identity = 1; identity < len(master.clients); identity++ {
+		if master.clients[identity] == nil {
+			break
+		}
+	}
+	if identity == len(master.clients) {
+		err = errors.New("Adress poll is full")
+		link.SendJoinRsp(&common.JoinRsp{Error: err})
 		return
 	}
+
 	var addr net.IP
-	addr, err = master.addressPool.GetAddress(req.Identity)
+	addr, err = master.addressPool.GetAddress(identity)
 	if err != nil {
 		return
 	}
-	err = link.SendJoinRsp(&common.JoinRsp{Address: addr, Mask: master.addressPool.Network.Mask, Success: true})
+	err = link.SendJoinRsp(&common.JoinRsp{Address: addr, Mask: master.addressPool.Network.Mask, Error: nil})
 	if err != nil {
 		return
 	}
-	master.clientJoin(req.Identity, req.MACAddr, link)
+	master.clientJoin(identity, req.MACAddr, link)
 	link.StartRoutines()
-	return req.Identity, nil
+	return identity, nil
 }
 
 func (master *Master) frameHandler(myIdentity int) {
