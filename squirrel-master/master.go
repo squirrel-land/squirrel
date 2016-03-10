@@ -19,37 +19,32 @@ type client struct {
 type Master struct {
 	addressPool     *addressPool
 	clients         []*client
-	addrReverse     map[string]int
+	addrReverse     *addressReverse
 	positionManager squirrel.PositionManager
-	mu              sync.RWMutex // just for addrReverse, since maps are not thread-safe.
 
 	mobilityManager squirrel.MobilityManager
 	september       squirrel.September
 }
 
 func NewMaster(network *net.IPNet, mobilityManager squirrel.MobilityManager, september squirrel.September) (master *Master) {
-	master = &Master{addressPool: newAddressPool(network), addrReverse: make(map[string]int), mobilityManager: mobilityManager, september: september}
+	master = &Master{addressPool: newAddressPool(network), addrReverse: newAddressReverse(), mobilityManager: mobilityManager, september: september}
 	master.clients = make([]*client, master.addressPool.Capacity()+1, master.addressPool.Capacity()+1)
-	master.positionManager = NewPositionManager(master.addressPool.Capacity() + 1)
+	master.positionManager = NewPositionManager(master.addressPool.Capacity()+1, master.addrReverse)
 	master.mobilityManager.Initialize(master.positionManager)
 	master.september.Initialize(master.positionManager)
 	return
 }
 
 func (master *Master) clientJoin(identity int, addr net.HardwareAddr, link *common.Link) {
-	master.mu.Lock()
-	defer master.mu.Unlock()
 	master.clients[identity] = &client{Link: link, Addr: addr}
 	master.positionManager.Enable(identity)
-	master.addrReverse[addr.String()] = identity
+	master.addrReverse.Add(addr, identity)
 	ipAddr, _ := master.addressPool.GetAddress(identity)
 	fmt.Printf("%v joined\n", ipAddr)
 }
 
 func (master *Master) clientLeave(identity int) {
-	master.mu.Lock()
-	defer master.mu.Unlock()
-	delete(master.addrReverse, master.clients[identity].Addr.String())
+	master.addrReverse.Remove(master.clients[identity].Addr)
 	master.clients[identity] = nil
 	master.positionManager.Disable(identity)
 	addr, _ := master.addressPool.GetAddress(identity)
@@ -123,12 +118,9 @@ func (master *Master) frameHandler(myIdentity int) {
 			wg.Wait()
 			bufferedFrame.Return()
 		} else { // unicast
-			master.mu.RLock() // maps are not thread-safe
-			dstId, ok := master.addrReverse[waterutil.MACDestination(bufferedFrame.Frame).String()]
-			client := master.clients[dstId]
-			master.mu.RUnlock()
+			dstId, ok := master.addrReverse.Get(waterutil.MACDestination(bufferedFrame.Frame))
 			if ok && master.september.SendUnicast(myIdentity, dstId, len(bufferedFrame.Frame)) {
-				client.Link.WriteAndReturnBuffer(bufferedFrame)
+				master.clients[dstId].Link.WriteAndReturnBuffer(bufferedFrame)
 			} else {
 				bufferedFrame.Return()
 			}

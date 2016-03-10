@@ -1,8 +1,6 @@
 package squirrel
 
-import (
-	"github.com/coreos/go-etcd/etcd"
-)
+import "github.com/coreos/go-etcd/etcd"
 
 // MobilityManager controls locations and defines model of mobility of each
 // nodes. Master uses an implementation of MobilityManager interface to
@@ -74,7 +72,8 @@ type PositionManager interface {
 
 	// Get returns a copy of Position at given index. Avoid this if possible. It
 	// causes copying Position struct.
-	Get(index int) Position
+	Get(index int) (Position, error)
+	GetAddr(hardAddr string) (Position, error)
 
 	// Distance calculates Euclidean distance between positions at index1 and
 	// index2.
@@ -83,8 +82,10 @@ type PositionManager interface {
 	// SetPosition sets position at index to be pos. It copies X, Y, and Height
 	// values from inside pos into internal slice. pos is left intact and safe to
 	// be changed afterwards.
-	SetPosition(index int, pos *Position)
-	Set(index int, x, y, height float64)
+	SetPosition(index int, pos *Position) error
+	Set(index int, x, y, height float64) error
+	SetPositionAddr(hardAddr string, pos *Position) (err error)
+	SetAddr(hardAddr string, x, y, height float64) (err error)
 
 	// Enable marks a node as enabled.
 	Enable(index int)

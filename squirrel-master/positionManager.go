@@ -1,9 +1,11 @@
 package main
 
 import (
-	"github.com/squirrel-land/squirrel"
+	"fmt"
 	"math"
 	"sync"
+
+	"github.com/squirrel-land/squirrel"
 )
 
 type PositionManager struct {
@@ -13,15 +15,18 @@ type PositionManager struct {
 	isEnabled      []bool
 	enabledChanged []chan<- []int
 	muEnabled      *sync.RWMutex // mutex for isEnabled, enabled and enabledChanged
+
+	addrReverse *addressReverse
 }
 
-func NewPositionManager(size int) squirrel.PositionManager {
+func NewPositionManager(size int, addrReverse *addressReverse) squirrel.PositionManager {
 	ret := new(PositionManager)
 	ret.pos = make([]*squirrel.Position, size)
 	ret.mu = make([]*sync.RWMutex, size)
 	ret.isEnabled = make([]bool, size)
 	ret.enabledChanged = make([]chan<- []int, 0)
 	ret.muEnabled = new(sync.RWMutex)
+	ret.addrReverse = addrReverse
 	for i := 0; i < size; i++ {
 		ret.pos[i] = &squirrel.Position{0, 0, 0}
 		ret.mu[i] = new(sync.RWMutex)
@@ -35,10 +40,31 @@ func (p *PositionManager) Capacity() int {
 
 // Get returns a copy of Position at given index. Avoid this if possible. It
 // causes copying Position struct.
-func (p *PositionManager) Get(index int) squirrel.Position {
+func (p *PositionManager) Get(index int) (pos squirrel.Position, err error) {
+	if index >= len(p.pos) {
+		err = fmt.Errorf("invalid index %d. capacity is %d", index, len(p.pos))
+		return
+	}
 	p.mu[index].RLock()
 	defer p.mu[index].RUnlock()
-	return *(p.pos[index])
+	if !p.isEnabled[index] {
+		err = fmt.Errorf("node with index %d is disabled", index)
+		return
+	}
+	pos = *(p.pos[index])
+	return
+}
+
+func (p *PositionManager) GetAddr(hardAddr string) (pos squirrel.Position, err error) {
+	var id int
+	var ok bool
+	id, ok = p.addrReverse.GetS(hardAddr)
+	if !ok {
+		err = fmt.Errorf("node with hardware address %s is not found", hardAddr)
+		return
+	}
+	pos, err = p.Get(id)
+	return
 }
 
 // Distance calculates Euclidean distance between positions at index1 and
@@ -52,20 +78,62 @@ func (p *PositionManager) Distance(index1, index2 int) float64 {
 	return dist
 }
 
-func (p *PositionManager) Set(index int, x, y, height float64) {
+func (p *PositionManager) SetAddr(hardAddr string, x, y, height float64) (err error) {
+	var id int
+	var ok bool
+	id, ok = p.addrReverse.GetS(hardAddr)
+	if !ok {
+		err = fmt.Errorf("node with hardware address %s is not found", hardAddr)
+		return
+	}
+	p.Set(id, x, y, height)
+	return
+}
+
+func (p *PositionManager) SetPositionAddr(hardAddr string, pos *squirrel.Position) (err error) {
+	var id int
+	var ok bool
+	id, ok = p.addrReverse.GetS(hardAddr)
+	if !ok {
+		err = fmt.Errorf("node with hardware address %s is not found", hardAddr)
+		return
+	}
+	p.SetPosition(id, pos)
+	return
+}
+
+func (p *PositionManager) Set(index int, x, y, height float64) (err error) {
+	if index >= len(p.pos) {
+		err = fmt.Errorf("invalid index %d. capacity is %d", index, len(p.pos))
+		return
+	}
 	p.mu[index].Lock()
 	defer p.mu[index].Unlock()
+	if !p.isEnabled[index] {
+		err = fmt.Errorf("node with index %d is disabled", index)
+		return
+	}
 	p.pos[index].X = x
 	p.pos[index].Y = y
 	p.pos[index].Height = height
+	return
 }
 
-func (p *PositionManager) SetPosition(index int, pos *squirrel.Position) {
+func (p *PositionManager) SetPosition(index int, pos *squirrel.Position) (err error) {
+	if index >= len(p.pos) {
+		err = fmt.Errorf("invalid index %d. capacity is %d", index, len(p.pos))
+		return
+	}
 	p.mu[index].Lock()
 	defer p.mu[index].Unlock()
+	if !p.isEnabled[index] {
+		err = fmt.Errorf("node with index %d is disabled", index)
+		return
+	}
 	p.pos[index].X = pos.X
 	p.pos[index].Y = pos.Y
 	p.pos[index].Height = pos.Height
+	return
 }
 
 // Enable marks a node enabled.
