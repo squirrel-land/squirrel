@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/coreos/go-etcd/etcd"
@@ -55,19 +56,19 @@ func main() {
 	conf, err := getConfig()
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		printHelp()
 		os.Exit(1)
 	}
 
 	client, err := NewClient(conf.tapName)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		os.Exit(1)
 	}
 	err = client.Run(conf.masterURI)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		os.Exit(1)
 	}
 

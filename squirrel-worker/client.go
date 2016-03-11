@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"os/exec"
 
@@ -33,7 +34,7 @@ func NewClient(tapName string) (client *Client, err error) {
 func (client *Client) configureTap(joinRsp *common.JoinRsp) (err error) {
 	m, _ := joinRsp.Mask.Size()
 	addr := fmt.Sprintf("%s/%d", joinRsp.Address.String(), m)
-	fmt.Printf("Assigning %s to %s\n", addr, client.tap.Name())
+	log.Printf("Assigning %s to %s\n", addr, client.tap.Name())
 	err = exec.Command("ip", "addr", "add", addr, "dev", client.tap.Name()).Run()
 	if err != nil {
 		return

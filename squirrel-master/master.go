@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	"fmt"
+	"log"
 	"net"
 	"sync"
 
@@ -40,7 +40,7 @@ func (master *Master) clientJoin(identity int, addr net.HardwareAddr, link *comm
 	master.positionManager.Enable(identity)
 	master.addrReverse.Add(addr, identity)
 	ipAddr, _ := master.addressPool.GetAddress(identity)
-	fmt.Printf("%v joined\n", ipAddr)
+	log.Printf("%v joined\n", ipAddr)
 }
 
 func (master *Master) clientLeave(identity int) {
@@ -48,7 +48,7 @@ func (master *Master) clientLeave(identity int) {
 	master.clients[identity] = nil
 	master.positionManager.Disable(identity)
 	addr, _ := master.addressPool.GetAddress(identity)
-	fmt.Printf("%v left\n", addr)
+	log.Printf("%v left\n", addr)
 }
 
 func (master *Master) accept(listener net.Listener) (identity int, err error) {

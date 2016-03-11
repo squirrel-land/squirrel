@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"os"
 
@@ -156,14 +157,14 @@ func runMaster(conf config) (err error) {
 
 	err = mobilityManager.Configure(conf.mobilityManagerConfig)
 	if err != nil {
-		fmt.Println("Creating MobilityManager failed. Following message might help:\n")
-		fmt.Println(mobilityManager.ParametersHelp())
+		log.Println("Creating MobilityManager failed. Following message might help:\n")
+		log.Println(mobilityManager.ParametersHelp())
 		return
 	}
 	err = september.Configure(conf.septemberConfig)
 	if err != nil {
-		fmt.Println("Creating September failed. Following message might help:\n")
-		fmt.Println(september.ParametersHelp())
+		log.Println("Creating September failed. Following message might help:\n")
+		log.Println(september.ParametersHelp())
 		return
 	}
 
@@ -196,14 +197,14 @@ func printHelp() {
 func main() {
 	conf, err := getConfig()
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		printHelp()
 		os.Exit(1)
 	}
 
 	err = runMaster(conf)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		os.Exit(1)
 	}
 
