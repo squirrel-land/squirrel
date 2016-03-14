@@ -120,19 +120,7 @@ func (p *PositionManager) Set(index int, x, y, height float64) (err error) {
 }
 
 func (p *PositionManager) SetPosition(index int, pos *squirrel.Position) (err error) {
-	if index >= len(p.pos) {
-		err = fmt.Errorf("invalid index %d. capacity is %d", index, len(p.pos))
-		return
-	}
-	p.mu[index].Lock()
-	defer p.mu[index].Unlock()
-	if !p.isEnabled[index] {
-		err = fmt.Errorf("node with index %d is disabled", index)
-		return
-	}
-	p.pos[index].X = pos.X
-	p.pos[index].Y = pos.Y
-	p.pos[index].Height = pos.Height
+	p.Set(index, pos.X, pos.Y, pos.Height)
 	return
 }
 

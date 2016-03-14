@@ -8,7 +8,7 @@ import (
 
 type addressReverse struct {
 	addrs map[string]int
-	*sync.RWMutex
+	sync.RWMutex
 }
 
 func newAddressReverse() *addressReverse {
