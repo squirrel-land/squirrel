@@ -41,6 +41,10 @@ func getConfig() (conf config, err error) {
 	}
 	conf.uri = addr.String() + ":1234"
 
+	_, err = client.Set("/squirrel/master_ip", addr.String(), 0)
+	if err != nil {
+		return
+	}
 	_, err = client.Set("/squirrel/master_uri", conf.uri, 0)
 	if err != nil {
 		return
@@ -180,8 +184,6 @@ func printHelp() {
 	fmt.Println("    SQUIRREL_ENDPOINT  : etcd endpoint UIR. [Optional]")
 	fmt.Println("                             Default: http://127.0.0.1:4001")
 	fmt.Println("Etcd Configuration Entries:")
-	fmt.Println("    /squirrel/master_uri                          [Required]")
-	fmt.Println("        URI of the squirrel-master that squirrel-workers connect to. ")
 	fmt.Println("    /squirrel/master/emulated_subnet              [Required]")
 	fmt.Println("        Network in CIDR notation for emulated wireless network.")
 	fmt.Println("    /squirrel/master/mobility_manager             [Required]")
