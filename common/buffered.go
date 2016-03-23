@@ -16,9 +16,14 @@ func NewBufferedFrame(owner chan *BufferedFrame) *BufferedFrame {
 	return &BufferedFrame{Frame: frame, owner: owner}
 }
 
+func (buf *BufferedFrame) Resize(length int) {
+	buf.Frame = buf.Frame[:length]
+}
+
 // send the BufferedFrame back to its owner channel for further use
 func (buf *BufferedFrame) Return() {
 	if buf.owner != nil {
+		buf.Resize(FRAMESIZE)
 		buf.owner <- buf
 	}
 }

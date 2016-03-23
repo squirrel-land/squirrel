@@ -79,13 +79,15 @@ func (client *Client) tap2master() {
 	for i := 0; i < common.BUFFERSIZE; i++ {
 		buffer <- common.NewBufferedFrame(buffer)
 	}
+	var n int
 	for {
 		buf := <-buffer
-		_, err = client.tap.Read(buf.Frame)
+		n, err = client.tap.Read(buf.Frame)
 		if err != nil {
 			client.routinesQuit <- err
 			return
 		}
+		buf.Resize(n)
 		client.link.WriteAndReturnBuffer(buf)
 	}
 }
