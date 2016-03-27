@@ -2,10 +2,13 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"net"
 	"os"
+	"runtime/pprof"
+	"time"
 
 	"github.com/coreos/go-etcd/etcd"
 	"github.com/squirrel-land/squirrel"
@@ -196,7 +199,24 @@ func printHelp() {
 	fmt.Println("        Configuration node (a Dir) of the September.")
 }
 
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file; if specified, squirrel-master runs for 60 seconds and exits.")
+var debug = flag.Bool("debug", false, "verbose logging for debug purposes")
+
 func main() {
+	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		go func() {
+			time.Sleep(60 * time.Second)
+			pprof.StopCPUProfile()
+			os.Exit(0)
+		}()
+	}
+
 	conf, err := getConfig()
 	if err != nil {
 		log.Println(err)

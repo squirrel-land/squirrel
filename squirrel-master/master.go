@@ -110,9 +110,12 @@ func (master *Master) frameHandler(myIdentity int) {
 		if waterutil.IsBroadcast(dst) || waterutil.IsIPv4Multicast(dst) {
 			recipients := master.september.SendBroadcast(myIdentity, len(bufferedFrame.Frame), underlying)
 			for _, id := range recipients {
-				if master.clients[id] != nil { // This is mostly not necessary. Added due to not using locks, just in case.
+				if master.clients[id] != nil {
 					wg.Add(1)
 					master.clients[id].Link.WriteWithNotify(bufferedFrame, wg)
+					if *debug {
+						log.Printf("broadcast frame of length %d from client %d to be delivered to client %d\n", len(bufferedFrame.Frame), myIdentity, id)
+					}
 				}
 			}
 			wg.Wait()
@@ -121,8 +124,14 @@ func (master *Master) frameHandler(myIdentity int) {
 			dstId, ok := master.addrReverse.Get(waterutil.MACDestination(bufferedFrame.Frame))
 			if ok && master.september.SendUnicast(myIdentity, dstId, len(bufferedFrame.Frame)) {
 				master.clients[dstId].Link.WriteAndReturnBuffer(bufferedFrame)
+				if *debug {
+					log.Printf("unicast frame of length %d from client %d to be delivered to client %d\n", len(bufferedFrame.Frame), myIdentity, dstId)
+				}
 			} else {
 				bufferedFrame.Return()
+				if *debug {
+					log.Printf("unicast frame of length %d from client %d NOT to be delivered to client %d\n", len(bufferedFrame.Frame), myIdentity, dstId)
+				}
 			}
 		}
 	}

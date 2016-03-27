@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"sync"
 
@@ -116,6 +117,9 @@ func (p *PositionManager) Set(index int, x, y, height float64) (err error) {
 	p.pos[index].X = x
 	p.pos[index].Y = y
 	p.pos[index].Height = height
+	if *debug {
+		log.Printf("position for %d is updated to: %v\n", index, p.pos[index])
+	}
 	return
 }
 
