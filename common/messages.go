@@ -4,18 +4,15 @@ import (
 	"net"
 )
 
+type MsgType uint8
+
 // Message types
 const (
-	_ = iota
+	_ MsgType = iota
 	MSGJOINREQ
 	MSGJOINRSP
 	MSGFRAME
 )
-
-// sent before each message to help identify message type
-type MessageType struct {
-	Type uint8 //256 kinds should be enough for all messages, huh?
-}
 
 // sent from client to master, representing request to join
 type JoinReq struct {

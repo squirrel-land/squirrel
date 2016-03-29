@@ -53,24 +53,24 @@ func printHelp() {
 }
 
 func main() {
-	conf, err := getConfig()
+	var (
+		client *Client
+		conf   config
+		err    error
+	)
 
-	if err != nil {
-		log.Println(err)
+	if conf, err = getConfig(); err != nil {
 		printHelp()
-		os.Exit(1)
+		log.Fatalf("reading config error: %v\n", err)
+	}
+	if client, err = NewClient(conf.tapName); err != nil {
+		log.Fatalf("creating client error: %v\n", err)
+	}
+	if err = client.Start(conf.masterURI); err != nil {
+		log.Fatalf("starting client error: %v\n", err)
 	}
 
-	client, err := NewClient(conf.tapName)
-	if err != nil {
-		log.Println(err)
-		os.Exit(1)
-	}
-	err = client.Run(conf.masterURI)
-	if err != nil {
-		log.Println(err)
-		os.Exit(1)
-	}
+	select {}
 
 	return
 }

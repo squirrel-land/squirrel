@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log"
 	"net"
-	"sync"
 
 	"github.com/squirrel-land/squirrel"
 	"github.com/squirrel-land/squirrel/common"
@@ -43,11 +42,16 @@ func (master *Master) clientJoin(identity int, addr net.HardwareAddr, link *comm
 	log.Printf("%v joined\n", ipAddr)
 }
 
-func (master *Master) clientLeave(identity int) {
+func (master *Master) clientLeave(identity int, err error) {
 	master.addrReverse.Remove(master.clients[identity].Addr)
 	master.clients[identity] = nil
 	master.positionManager.Disable(identity)
 	addr, _ := master.addressPool.GetAddress(identity)
+	if err == nil {
+		log.Printf("link to %v is terminated with no error\n", addr)
+	} else {
+		log.Printf("link to %v is terminated with error: %v\n", addr, err)
+	}
 	log.Printf("%v left\n", addr)
 }
 
@@ -92,49 +96,51 @@ func (master *Master) accept(listener net.Listener) (identity int, err error) {
 
 func (master *Master) frameHandler(myIdentity int) {
 	var (
-		bufferedFrame *common.BufferedFrame
-		wg            = new(sync.WaitGroup)
-		underlying    = make([]int, master.addressPool.Capacity()+1)
+		buf        *common.ReusableSlice
+		ok         bool
+		underlying = make([]int, master.addressPool.Capacity()+1)
 	)
 
 	for {
-		bufferedFrame = <-master.clients[myIdentity].Link.ReadFrame
-		if master.clients[myIdentity].Link.Error != nil {
-			master.clientLeave(myIdentity)
-			if bufferedFrame != nil {
-				bufferedFrame.Return()
-			}
-			return
+		buf, ok = master.clients[myIdentity].Link.ReadFrame()
+		if !ok {
+			break
 		}
-		dst := waterutil.MACDestination(bufferedFrame.Frame)
+		dst := waterutil.MACDestination(buf.Slice())
 		if waterutil.IsBroadcast(dst) || waterutil.IsIPv4Multicast(dst) {
-			recipients := master.september.SendBroadcast(myIdentity, len(bufferedFrame.Frame), underlying)
+			recipients := master.september.SendBroadcast(myIdentity, len(buf.Slice()), underlying)
 			for _, id := range recipients {
 				if master.clients[id] != nil {
-					wg.Add(1)
-					master.clients[id].Link.WriteWithNotify(bufferedFrame, wg)
+					buf.AddOwner()
+					master.clients[id].Link.WriteFrame(buf)
 					if *debug {
-						log.Printf("broadcast frame of length %d from client %d to be delivered to client %d\n", len(bufferedFrame.Frame), myIdentity, id)
+						log.Printf("broadcast frame of length %d from client %d to be delivered to client %d\n", len(buf.Slice()), myIdentity, id)
 					}
 				}
 			}
-			wg.Wait()
-			bufferedFrame.Return()
+			buf.Done()
 		} else { // unicast
-			dstId, ok := master.addrReverse.Get(waterutil.MACDestination(bufferedFrame.Frame))
-			if ok && master.september.SendUnicast(myIdentity, dstId, len(bufferedFrame.Frame)) {
-				master.clients[dstId].Link.WriteAndReturnBuffer(bufferedFrame)
-				if *debug {
-					log.Printf("unicast frame of length %d from client %d to be delivered to client %d\n", len(bufferedFrame.Frame), myIdentity, dstId)
+			dstID, ok := master.addrReverse.Get(waterutil.MACDestination(buf.Slice()))
+			if ok {
+				if master.september.SendUnicast(myIdentity, dstID, len(buf.Slice())) {
+					master.clients[dstID].Link.WriteFrame(buf)
+					if *debug {
+						log.Printf("unicast frame of length %d from client %d to be delivered to client %d\n", len(buf.Slice()), myIdentity, dstID)
+					}
+				} else {
+					buf.Done()
+					if *debug {
+						log.Printf("unicast frame of length %d from client %d NOT to be delivered to client %d\n", len(buf.Slice()), myIdentity, dstID)
+					}
 				}
 			} else {
-				bufferedFrame.Return()
 				if *debug {
-					log.Printf("unicast frame of length %d from client %d NOT to be delivered to client %d\n", len(bufferedFrame.Frame), myIdentity, dstId)
+					log.Printf("unicast frame of length %d from client %d has unknown dst address: %v\n", len(buf.Slice()), myIdentity, waterutil.MACDestination(buf.Slice()))
 				}
 			}
 		}
 	}
+	master.clientLeave(myIdentity, master.clients[myIdentity].Link.IncomingError())
 }
 
 func (master *Master) Run(laddr string) (err error) {

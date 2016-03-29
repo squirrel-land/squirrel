@@ -2,40 +2,51 @@ package common
 
 import (
 	"encoding/gob"
-	"errors"
+	"fmt"
+	"io"
+	"log"
 	"net"
-	"sync"
 )
 
-var (
-	ConnectionClosed          = errors.New("Connection is closed.")
-	UnKnownTypeInWriteChannel = errors.New("Unknown type sent to write channel.")
-)
-
-type notifiableBufferedFrame struct {
-	BufferedFrame *BufferedFrame
-	waitGroup     *sync.WaitGroup
-}
-
-// A Link can send or receive frames. It uses channels internally and is thread-safe. To avoid too much GC, a circular buffer is used for reading frames. Buffered frames are owned by Link and should be returned once they are not useful to whoever reads them from here.
+// A Link can send or receive frames. It uses channels internally and is
+// thread-safe.
 type Link struct {
-	Error      error // indicate whether there's any error encountered.
 	connection net.Conn
-	buffer     chan *BufferedFrame // buffer pool. It owns instances of BufferedFrame
-	ReadFrame  chan *BufferedFrame // The channel used to read a frame from this Link. It is necessary to call .Return() when finishing using the BufferedFrame.
-	writeFrame chan interface{}    // The channel to write a frame into this Link.
 	encoder    *gob.Encoder
 	decoder    *gob.Decoder
+
+	incoming      chan *ReusableSlice
+	outgoing      chan *ReusableSlice
+	incomingError error
+}
+
+func (l *Link) ReadFrame() (frame *ReusableSlice, ok bool) {
+	frame, ok = <-l.incoming
+	return
+}
+
+func (l *Link) WriteFrame(frame *ReusableSlice) {
+	l.outgoing <- frame
+}
+
+func (l *Link) Done() {
+	close(l.outgoing)
+}
+
+// IncomingError returns the error (if any) happened while decoding an incoming
+// message.  Note: if there's an error in encoding outgoing messages, it is
+// considered an implementation and log.Fatalf is called.
+func (l *Link) IncomingError() error {
+	return l.incomingError
 }
 
 func NewLink(conn net.Conn) (link *Link) {
 	return &Link{
 		connection: conn,
-		buffer:     make(chan *BufferedFrame, BUFFERSIZE),
-		ReadFrame:  make(chan *BufferedFrame, BUFFERSIZE),
-		writeFrame: make(chan interface{}, BUFFERSIZE),
 		encoder:    gob.NewEncoder(conn),
 		decoder:    gob.NewDecoder(conn),
+		incoming:   make(chan *ReusableSlice, 64),
+		outgoing:   make(chan *ReusableSlice, 64),
 	}
 }
 
@@ -65,85 +76,54 @@ func (link *Link) GetJoinRsp() (rsp *JoinRsp, err error) {
 
 // Start routines that handle non-blocking read/write. This should be called only after initialization(req/rsp) process.
 func (link *Link) StartRoutines() {
-	for i := 0; i < BUFFERSIZE; i++ {
-		link.buffer <- NewBufferedFrame(link.buffer)
-	}
 	go link.readRoutine()
 	go link.writeRoutine()
 }
 
+func (link *Link) failIncoming(err error) {
+	link.incomingError = err
+	close(link.incoming)
+}
+
 func (link *Link) readRoutine() {
-	var t MessageType
-	var buf *BufferedFrame
+	pool := NewSlicePool(1522)
+	var (
+		t   MsgType
+		buf *ReusableSlice
+	)
+	var err error
 	for {
-		if link.Error != nil {
-			link.ReadFrame <- nil
+		if err = link.decoder.Decode(&t); err != nil {
+			if err != io.EOF {
+				link.failIncoming(fmt.Errorf("decoding MsgType error: %v", err))
+			} else {
+				link.failIncoming(nil)
+			}
 			return
 		}
-		link.Error = link.decoder.Decode(&t)
-		if t.Type == 0 {
-			link.Error = ConnectionClosed
-		}
-		if link.Error != nil {
-			link.ReadFrame <- nil
-			return
-		}
-		if t.Type == MSGFRAME {
-			buf = <-link.buffer
-			link.Error = link.decoder.Decode(&buf.Frame)
-			if link.Error != nil {
-				link.ReadFrame <- buf
+		if t == MSGFRAME {
+			buf = pool.Get()
+			if err = link.decoder.Decode(buf.SlicePtr()); err != nil {
+				link.failIncoming(fmt.Errorf("decoding frame error: %v", err))
 				return
 			}
-			link.ReadFrame <- buf
+			link.incoming <- buf
+		} else {
+			link.failIncoming(fmt.Errorf("unexpected MsgType: %d", t))
+			return
 		}
 	}
 }
 
 func (link *Link) writeRoutine() {
-	var bufi interface{}
-	messageType := MessageType{Type: MSGFRAME}
-	for {
-		if link.Error == nil {
-			bufi = <-link.writeFrame
-			link.Error = link.encoder.Encode(messageType)
-			switch buf := bufi.(type) {
-			case *BufferedFrame:
-				if link.Error == nil {
-					link.Error = link.encoder.Encode(buf.Frame)
-				}
-				buf.Return()
-			case notifiableBufferedFrame:
-				if link.Error == nil {
-					link.Error = link.encoder.Encode(buf.BufferedFrame.Frame)
-				}
-				buf.waitGroup.Done()
-			case Frame:
-				if link.Error == nil {
-					link.Error = link.encoder.Encode(buf)
-				}
-			default:
-				link.Error = UnKnownTypeInWriteChannel
-			}
+	var err error
+	for buf := range link.outgoing {
+		if err = link.encoder.Encode(MSGFRAME); err != nil {
+			log.Fatalf("error encoding MSGFRAME: %v\n", err)
 		}
+		if err = link.encoder.Encode(buf.Slice()); err != nil {
+			log.Fatalf("error encoding MSGFRAME: %v\n", err)
+		}
+		buf.Done()
 	}
-}
-
-// Write a buffered frame into the link.
-// The buffered frame is returned to its owner as soon as it's sent completely to the network.
-func (link *Link) WriteAndReturnBuffer(bufferedFrame *BufferedFrame) {
-	link.writeFrame <- bufferedFrame
-}
-
-// Write a buffered frame into the link.
-// A value is sent to notify as soon as the buffered frame is sent completely to the network. The caller needs to ensure that the buffered frame is returned (.Return()) after finishing using it.
-func (link *Link) WriteWithNotify(bufferedFrame *BufferedFrame, wg *sync.WaitGroup) {
-	nbuf := notifiableBufferedFrame{BufferedFrame: bufferedFrame, waitGroup: wg}
-	link.writeFrame <- nbuf
-}
-
-// Write a frame into the link.
-// Should only be used for unbuffered frame.
-func (link *Link) WriteUnbuffered(frame Frame) {
-	link.writeFrame <- frame
 }

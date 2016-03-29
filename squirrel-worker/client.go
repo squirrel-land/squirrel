@@ -11,9 +11,8 @@ import (
 )
 
 type Client struct {
-	link         *common.Link
-	tap          *water.Interface
-	routinesQuit chan error
+	link *common.Link
+	tap  *water.Interface
 }
 
 // Create a new client along with a TAP network interface whose name is tapName
@@ -24,9 +23,8 @@ func NewClient(tapName string) (client *Client, err error) {
 		return nil, err
 	}
 	client = &Client{
-		link:         nil,
-		tap:          tap,
-		routinesQuit: make(chan error),
+		link: nil,
+		tap:  tap,
 	}
 	return
 }
@@ -75,45 +73,48 @@ func (client *Client) connect(masterAddr string) (err error) {
 
 func (client *Client) tap2master() {
 	var err error
-	buffer := make(chan *common.BufferedFrame, common.BUFFERSIZE)
-	for i := 0; i < common.BUFFERSIZE; i++ {
-		buffer <- common.NewBufferedFrame(buffer)
-	}
+	pool := common.NewSlicePool(1522)
 	var n int
 	for {
-		buf := <-buffer
-		n, err = client.tap.Read(buf.Frame)
-		if err != nil {
-			client.routinesQuit <- err
+		buf := pool.Get()
+		if n, err = client.tap.Read(buf.Slice()); err != nil {
+			log.Fatalf("reading from tap error: %v\n", err)
 			return
 		}
 		buf.Resize(n)
-		client.link.WriteAndReturnBuffer(buf)
+		client.link.WriteFrame(buf)
 	}
 }
 
 func (client *Client) master2tap() {
-	var buf *common.BufferedFrame
-	var err error
+	var (
+		buf *common.ReusableSlice
+		err error
+		ok  bool
+	)
 	for {
-		buf = <-client.link.ReadFrame
-		if client.link.Error != nil {
-			client.routinesQuit <- client.link.Error
-			return
+		buf, ok = client.link.ReadFrame()
+		if !ok {
+			break
 		}
-		_, err = client.tap.Write(buf.Frame)
-		buf.Return()
+		_, err = client.tap.Write(buf.Slice())
+		buf.Done()
 		if err != nil {
-			client.routinesQuit <- err
+			log.Fatalf("writing to TAP error: %v\n", err)
 			return
 		}
+	}
+	if client.link.IncomingError() == nil {
+		log.Println("link terminated with no error")
+	} else {
+		log.Fatalf("link terminated with error: %v\n", client.link.IncomingError())
 	}
 }
 
 // Run the client, and block until all routines exit or any error is ecountered.
 // It connects to a master with address masterAddr, proceeds with JoinReq/JoinRsp process, configures the TAP device, and at last, start routines that carry MAC frames back and forth between the TAP device and the master.
 // masterAddr: should be host:port format where host can be either IP address or hostname/domainName.
-func (client *Client) Run(masterAddr string) (err error) {
+func (client *Client) Start(masterAddr string) (err error) {
 	err = client.connect(masterAddr)
 	if err != nil {
 		return
@@ -122,10 +123,5 @@ func (client *Client) Run(masterAddr string) (err error) {
 	go client.tap2master()
 	go client.master2tap()
 
-	err = <-client.routinesQuit // first finished or error routine
-	if err != nil {
-		return
-	}
-	err = <-client.routinesQuit // second finished or error routine
 	return
 }
