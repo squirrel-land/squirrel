@@ -71,12 +71,12 @@ func (p *PositionManager) GetAddr(hardAddr string) (pos squirrel.Position, err e
 // Distance calculates Euclidean distance between positions at index1 and
 // index2.
 func (p *PositionManager) Distance(index1, index2 int) float64 {
-	p.mu[index1].RLock()
-	defer p.mu[index1].RUnlock()
-	p.mu[index2].RLock()
-	defer p.mu[index2].RUnlock()
-	dist := math.Sqrt(math.Pow(p.pos[index1].X-p.pos[index2].X, 2) + math.Pow(p.pos[index1].Y-p.pos[index2].Y, 2) + math.Pow(p.pos[index1].Height-p.pos[index2].Height, 2))
-	return dist
+	pos1, err1 := p.Get(index1)
+	pos2, err2 := p.Get(index2)
+	if err1 != nil || err2 != nil {
+		return math.MaxFloat64
+	}
+	return math.Sqrt(math.Pow(pos1.X-pos2.X, 2) + math.Pow(pos1.Y-pos2.Y, 2) + math.Pow(pos1.Height-pos2.Height, 2))
 }
 
 func (p *PositionManager) SetAddr(hardAddr string, x, y, height float64) (err error) {

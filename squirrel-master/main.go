@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-etcd/etcd"
+	_ "github.com/songgao/stacktraces/on/SIGUSR1"
 	"github.com/squirrel-land/squirrel"
 	"github.com/squirrel-land/squirrel/common"
 )
@@ -203,6 +204,8 @@ var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file; if sp
 var debug = flag.Bool("debug", false, "verbose logging for debug purposes")
 
 func main() {
+	log.SetOutput(os.Stdout)
+
 	flag.Parse()
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)

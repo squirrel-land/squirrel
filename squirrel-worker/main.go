@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/coreos/go-etcd/etcd"
+	_ "github.com/songgao/stacktraces/on/SIGUSR1"
 	"github.com/squirrel-land/squirrel/common"
 )
 
@@ -53,6 +54,8 @@ func printHelp() {
 }
 
 func main() {
+	log.SetOutput(os.Stdout)
+
 	var (
 		client *Client
 		conf   config
