@@ -14,8 +14,7 @@ func (s *ReusableSlice) AddOwner() {
 }
 
 func (s *ReusableSlice) Done() {
-	atomic.AddInt32(&s.counter, -1)
-	c := atomic.LoadInt32(&s.counter)
+	c := atomic.AddInt32(&s.counter, -1)
 	if c == 0 {
 		s.pool.Put(s)
 	} else if c < 0 {

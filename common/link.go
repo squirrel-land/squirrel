@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"sync/atomic"
 )
 
 // A Link can send or receive frames. It uses channels internally and is
@@ -17,7 +18,7 @@ type Link struct {
 
 	incoming      chan *ReusableSlice
 	outgoing      chan *ReusableSlice
-	incomingError error
+	incomingError atomic.Value // error
 }
 
 func (l *Link) ReadFrame() (frame *ReusableSlice, ok bool) {
@@ -37,17 +38,20 @@ func (l *Link) Done() {
 // message.  Note: if there's an error in encoding outgoing messages, it is
 // considered an implementation and log.Fatalf is called.
 func (l *Link) IncomingError() error {
-	return l.incomingError
+	return *l.incomingError.Load().(*error)
 }
 
 func NewLink(conn net.Conn) (link *Link) {
-	return &Link{
+	link = &Link{
 		connection: conn,
 		encoder:    gob.NewEncoder(conn),
 		decoder:    gob.NewDecoder(conn),
 		incoming:   make(chan *ReusableSlice, 64),
 		outgoing:   make(chan *ReusableSlice, 64),
 	}
+	var err error
+	link.incomingError.Store(&err)
+	return
 }
 
 // Send a JoinReq to the Link. Blocking.
@@ -81,7 +85,7 @@ func (link *Link) StartRoutines() {
 }
 
 func (link *Link) failIncoming(err error) {
-	link.incomingError = err
+	link.incomingError.Store(&err)
 	close(link.incoming)
 }
 
@@ -118,11 +122,13 @@ func (link *Link) readRoutine() {
 func (link *Link) writeRoutine() {
 	var err error
 	for buf := range link.outgoing {
-		if err = link.encoder.Encode(MSGFRAME); err != nil {
-			log.Fatalf("error encoding MSGFRAME: %v\n", err)
-		}
-		if err = link.encoder.Encode(buf.Slice()); err != nil {
-			log.Fatalf("error encoding MSGFRAME: %v\n", err)
+		if link.IncomingError() == nil {
+			if err = link.encoder.Encode(MSGFRAME); err != nil {
+				log.Fatalf("error encoding MSGFRAME: %v\n", err)
+			}
+			if err = link.encoder.Encode(buf.Slice()); err != nil {
+				log.Fatalf("error encoding MSGFRAME: %v\n", err)
+			}
 		}
 		buf.Done()
 	}
