@@ -5,9 +5,9 @@ import (
 	"log"
 	"net"
 
+	"github.com/songgao/packets/ethernet"
 	"github.com/squirrel-land/squirrel"
 	"github.com/squirrel-land/squirrel/common"
-	"github.com/squirrel-land/water/waterutil"
 )
 
 type client struct {
@@ -94,6 +94,14 @@ func (master *Master) accept(listener net.Listener) (identity int, err error) {
 	return identity, nil
 }
 
+func isBroadcast(addr net.HardwareAddr) bool {
+	return addr[0] == 0xff && addr[1] == 0xff && addr[2] == 0xff && addr[3] == 0xff && addr[4] == 0xff && addr[5] == 0xff
+}
+
+func isIPv4Multicast(addr net.HardwareAddr) bool {
+	return addr[0] == 0x01 && addr[1] == 0x00 && addr[2] == 0x5e
+}
+
 func (master *Master) frameHandler(myIdentity int) {
 	var (
 		buf        *common.ReusableSlice
@@ -106,36 +114,37 @@ func (master *Master) frameHandler(myIdentity int) {
 		if !ok {
 			break
 		}
-		dst := waterutil.MACDestination(buf.Slice())
-		if waterutil.IsBroadcast(dst) || waterutil.IsIPv4Multicast(dst) {
-			recipients := master.september.SendBroadcast(myIdentity, len(buf.Slice()), underlying)
+		frame := ethernet.Frame(buf.Slice())
+		dst := frame.Destination()
+		if isBroadcast(dst) || isIPv4Multicast(dst) {
+			recipients := master.september.SendBroadcast(myIdentity, len(frame.Payload()), underlying)
 			for _, id := range recipients {
 				if master.clients[id] != nil {
 					buf.AddOwner()
 					master.clients[id].Link.WriteFrame(buf)
 					if *debug {
-						log.Printf("broadcast frame of length %d from client %d to be delivered to client %d\n", len(buf.Slice()), myIdentity, id)
+						log.Printf("broadcast frame of length %d from client %d to be delivered to client %d\n", len(frame.Payload()), myIdentity, id)
 					}
 				}
 			}
 			buf.Done()
 		} else { // unicast
-			dstID, ok := master.addrReverse.Get(waterutil.MACDestination(buf.Slice()))
+			dstID, ok := master.addrReverse.Get(dst)
 			if ok {
-				if master.september.SendUnicast(myIdentity, dstID, len(buf.Slice())) {
+				if master.september.SendUnicast(myIdentity, dstID, len(frame.Payload())) {
 					master.clients[dstID].Link.WriteFrame(buf)
 					if *debug {
-						log.Printf("unicast frame of length %d from client %d to be delivered to client %d\n", len(buf.Slice()), myIdentity, dstID)
+						log.Printf("unicast frame of length %d from client %d to be delivered to client %d\n", len(frame.Payload()), myIdentity, dstID)
 					}
 				} else {
 					buf.Done()
 					if *debug {
-						log.Printf("unicast frame of length %d from client %d NOT to be delivered to client %d\n", len(buf.Slice()), myIdentity, dstID)
+						log.Printf("unicast frame of length %d from client %d NOT to be delivered to client %d\n", len(frame.Payload()), myIdentity, dstID)
 					}
 				}
 			} else {
 				if *debug {
-					log.Printf("unicast frame of length %d from client %d has unknown dst address: %v\n", len(buf.Slice()), myIdentity, waterutil.MACDestination(buf.Slice()))
+					log.Printf("unicast frame of length %d from client %d has unknown dst address: %v\n", len(frame.Payload()), myIdentity, dst)
 				}
 			}
 		}
