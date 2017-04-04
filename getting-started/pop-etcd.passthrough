@@ -1,0 +1,31 @@
+#!/bin/bash
+
+#!/bin/bash
+
+etcdctl rm --recursive /squirrel
+etcdctl mkdir /squirrel
+
+etcdctl set /squirrel/worker_tap_name "tap0"
+etcdctl set /squirrel/master_ifce "docker0"
+etcdctl set /squirrel/master/emulated_subnet "10.0.128.0/24"
+
+etcdctl set /squirrel/master/mobility_manager StaticUniformPositions
+etcdctl set /squirrel/master/mobility_manager_config_path /squirrel/master/StaticUniformPositions.1
+etcdctl set /squirrel/master/StaticUniformPositions.1/spacing 200
+etcdctl set /squirrel/master/StaticUniformPositions.1/shape Linear
+
+# etcdctl set /squirrel/master/mobility_manager gRPCUpdatablePositions
+# etcdctl set /squirrel/master/mobility_manager_config_path /squirrel/master/gRPCUpdatablePositions
+# etcdctl set /squirrel/master/gRPCUpdatablePositions/address :9876
+
+etcdctl set /squirrel/master/september "PassThrough"
+etcdctl set /squirrel/master/september_config_path "/squirrel/master/september_config.d"
+etcdctl mkdir /squirrel/master/september_config.d
+
+# etcdctl set /squirrel/master/september "CSMA/CA"
+# etcdctl set /squirrel/master/september_config_path "/squirrel/master/september_config.d"
+# etcdctl set /squirrel/master/september_config.d/transmission_range "500"
+# etcdctl set /squirrel/master/september_config.d/interference_range "1000"
+# etcdctl set /squirrel/master/september_config.d/mac_protocol "802.11p10MHz"
+# etcdctl set /squirrel/master/september_config.d/max_ucast_attempts "7"
+# etcdctl set /squirrel/master/september_config.d/data_rate_mbps "3"
